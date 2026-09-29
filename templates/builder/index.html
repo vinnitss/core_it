@@ -1,0 +1,495 @@
+{% extends "base.html" %}
+
+{% block title %}{% if report %}Редактирование отчёта{% else %}Конструктор отчётов{% endif %}{% endblock %}
+{% block page_title %}{% if report %}Редактирование: {{ report.name }}{% else %}Конструктор отчётов{% endif %}{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('report_builder.list_page') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="fas fa-list me-1"></i> Мои отчёты
+</a>
+{% endblock %}
+
+{% block content %}
+
+<div class="row">
+    <!-- Левая панель: параметры -->
+    <div class="col-lg-4">
+        <div class="section-card">
+            <h6 class="text-uppercase small text-muted mb-3">1. Источник данных</h6>
+            <select id="source" class="form-select form-select-sm">
+                {% for key, src in sources.items() %}
+                <option value="{{ key }}">{{ src.label }}</option>
+                {% endfor %}
+            </select>
+
+            <h6 class="text-uppercase small text-muted mt-4 mb-3">2. Тип отчёта</h6>
+            <div class="btn-group w-100" role="group">
+                <input type="radio" class="btn-check" name="rtype" id="rtypeTable" value="table" checked>
+                <label class="btn btn-outline-primary btn-sm" for="rtypeTable">
+                    <i class="fas fa-table me-1"></i>Таблица
+                </label>
+                <input type="radio" class="btn-check" name="rtype" id="rtypeKpi" value="kpi">
+                <label class="btn btn-outline-primary btn-sm" for="rtypeKpi">
+                    <i class="fas fa-hashtag me-1"></i>KPI
+                </label>
+            </div>
+
+            <h6 class="text-uppercase small text-muted mt-4 mb-3">3. Колонки</h6>
+            <div id="columns-list" style="max-height: 300px; overflow-y: auto; border: 1px solid #e9ecef; border-radius: 6px; padding: 8px;">
+                <!-- динамически -->
+            </div>
+
+            <h6 class="text-uppercase small text-muted mt-4 mb-3">4. Фильтры</h6>
+            <div id="filters-list">
+                <!-- динамически -->
+            </div>
+            <button type="button" class="btn btn-outline-secondary btn-sm mt-2 w-100" onclick="addFilter()">
+                <i class="fas fa-plus me-1"></i>Добавить фильтр
+            </button>
+
+            <h6 class="text-uppercase small text-muted mt-4 mb-3">5. Сортировка</h6>
+            <div class="row g-2">
+                <div class="col-8">
+                    <select id="order-field" class="form-select form-select-sm"></select>
+                </div>
+                <div class="col-4">
+                    <select id="order-dir" class="form-select form-select-sm">
+                        <option value="asc">↑</option>
+                        <option value="desc">↓</option>
+                    </select>
+                </div>
+            </div>
+
+            <h6 class="text-uppercase small text-muted mt-4 mb-3">6. Лимит строк</h6>
+            <input type="number" id="limit" class="form-control form-control-sm" value="500" min="1" max="100000">
+
+            <div class="d-grid mt-4">
+                <button type="button" class="btn btn-primary" onclick="runReport()">
+                    <i class="fas fa-play me-1"></i>Выполнить
+                </button>
+            </div>
+        </div>
+
+        <!-- Сохранение -->
+        <div class="section-card">
+            <h6 class="text-uppercase small text-muted mb-3">Сохранение</h6>
+            <div class="mb-2">
+                <label class="form-label small">Название</label>
+                <input type="text" id="save-name" class="form-control form-control-sm"
+                       value="{{ report.name if report else '' }}" placeholder="Например: Заявки в работе по проекту X">
+            </div>
+            <div class="mb-2">
+                <label class="form-label small">Описание</label>
+                <textarea id="save-description" class="form-control form-control-sm" rows="2"
+                          placeholder="Необязательно">{{ report.description if report and report.description else '' }}</textarea>
+            </div>
+            <div class="form-check mb-3">
+                <input type="checkbox" id="save-public" class="form-check-input"
+                       {% if report and report.is_public %}checked{% endif %}>
+                <label class="form-check-label small" for="save-public">Публичный (видят все)</label>
+            </div>
+            <button type="button" class="btn btn-success btn-sm w-100" onclick="saveReport()">
+                <i class="fas fa-save me-1"></i>
+                {% if report %}Сохранить изменения{% else %}Сохранить отчёт{% endif %}
+            </button>
+            {% if report and report.id %}
+            <button type="button" class="btn btn-outline-danger btn-sm w-100 mt-2" onclick="deleteReport()">
+                <i class="fas fa-trash me-1"></i>Удалить
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Правая панель: результат -->
+    <div class="col-lg-8">
+        <div class="section-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0"><i class="fas fa-poll me-2"></i>Результат</h5>
+                <div>
+                    <button type="button" class="btn btn-outline-success btn-sm" onclick="exportCurrent()">
+                        <i class="fas fa-file-excel me-1"></i>В Excel
+                    </button>
+                </div>
+            </div>
+            <div id="result">
+                <p class="text-muted">Настройте параметры слева и нажмите «Выполнить».</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const SOURCES = {{ sources|tojson }};
+const OPERATORS = {{ operators|tojson }};
+const AGGREGATIONS = {{ aggregations|tojson }};
+const EXISTING_REPORT = {{ (report|tojson) if report else 'null' }};
+
+let currentSource = '{{ report.config.source if report and report.config else "" }}' || Object.keys(SOURCES)[0];
+let currentReportId = {{ report.id if report else 'null' }};
+
+// ============ ИНИЦИАЛИЗАЦИЯ ============
+function initFromExisting() {
+    if (!EXISTING_REPORT) return;
+    const cfg = EXISTING_REPORT.config || {};
+    if (cfg.report_type) {
+        document.querySelector(`input[name="rtype"][value="${cfg.report_type}"]`).checked = true;
+    }
+    // загрузка колонок
+    (cfg.columns || []).forEach(c => {
+        const field = typeof c === 'string' ? c : c.field;
+        const agg = typeof c === 'string' ? '' : (c.agg || '');
+        const el = document.querySelector(`input.column-check[value="${field}"]`);
+        if (el) el.checked = true;
+        // агрегация
+        if (agg) {
+            const sel = document.querySelector(`select.agg-select[data-field="${field}"]`);
+            if (sel) sel.value = agg;
+        }
+    });
+    // фильтры
+    (cfg.filters || cfg.kpi_filters || []).forEach(f => addFilter(f));
+    // order
+    if (cfg.order && cfg.order.length) {
+        document.getElementById('order-field').value = cfg.order[0].field || '';
+        document.getElementById('order-dir').value = cfg.order[0].dir || 'asc';
+    }
+    if (cfg.limit) document.getElementById('limit').value = cfg.limit;
+}
+
+// ============ ИСТОЧНИК ============
+function updateFields() {
+    currentSource = document.getElementById('source').value;
+    const source = SOURCES[currentSource];
+    if (!source) return;
+
+    // Колонки
+    const colContainer = document.getElementById('columns-list');
+    colContainer.innerHTML = '';
+    source.fields.forEach(f => {
+        const row = document.createElement('div');
+        row.className = 'd-flex align-items-center mb-1';
+        row.innerHTML = `
+            <input class="form-check-input column-check me-2" type="checkbox"
+                   value="${f.name}" id="col-${f.name}">
+            <label class="form-check-label small flex-grow-1" for="col-${f.name}">${f.label}</label>
+            ${f.type === 'number' ? `
+                <select class="form-select form-select-sm agg-select" style="width: 110px;"
+                        data-field="${f.name}">
+                    <option value="">—</option>
+                    ${AGGREGATIONS.map(a => `<option value="${a.value}">${a.label}</option>`).join('')}
+                </select>
+            ` : ''}
+        `;
+        colContainer.appendChild(row);
+    });
+
+    // Сортировка
+    const orderSelect = document.getElementById('order-field');
+    orderSelect.innerHTML = '<option value="">—</option>';
+    source.fields.forEach(f => {
+        const opt = document.createElement('option');
+        opt.value = f.name;
+        opt.textContent = f.label;
+        orderSelect.appendChild(opt);
+    });
+
+    // Обновить фильтры
+    document.querySelectorAll('.filter-field').forEach(sel => {
+        fillFieldSelect(sel, source.fields);
+    });
+}
+
+// ============ ФИЛЬТРЫ ============
+let filterCounter = 0;
+
+function addFilter(data = null) {
+    const container = document.getElementById('filters-list');
+    const idx = filterCounter++;
+    const source = SOURCES[currentSource];
+
+    const div = document.createElement('div');
+    div.className = 'filter-row mb-2 p-2';
+    div.style.background = '#f8f9fc';
+    div.style.borderRadius = '6px';
+    div.dataset.idx = idx;
+
+    div.innerHTML = `
+        <div class="d-flex gap-1 mb-1">
+            <select class="form-select form-select-sm filter-field" onchange="updateFilterOps(this)">
+                ${source.fields.map(f => `<option value="${f.name}" data-type="${f.type}">${f.label}</option>`).join('')}
+            </select>
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('.filter-row').remove()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="d-flex gap-1">
+            <select class="form-select form-select-sm filter-op" style="width: 140px;"></select>
+            <input type="text" class="form-control form-control-sm filter-value" placeholder="Значение">
+            <input type="text" class="form-control form-control-sm filter-value2" placeholder="До"
+                   style="display:none; width: 100px;">
+        </div>
+    `;
+    container.appendChild(div);
+
+    const fieldSel = div.querySelector('.filter-field');
+    if (data) {
+        fieldSel.value = data.field || '';
+    }
+    updateFilterOps(fieldSel, data);
+}
+
+function fillFieldSelect(sel, fields) {
+    sel.innerHTML = fields.map(f =>
+        `<option value="${f.name}" data-type="${f.type}">${f.label}</option>`
+    ).join('');
+}
+
+function updateFilterOps(fieldSel, data = null) {
+    const opt = fieldSel.selectedOptions[0];
+    const type = opt?.dataset.type || 'string';
+    const opSel = fieldSel.closest('.filter-row').querySelector('.filter-op');
+    const ops = OPERATORS[type] || [];
+    opSel.innerHTML = ops.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+    if (data && data.op) opSel.value = data.op;
+    const val = fieldSel.closest('.filter-row').querySelector('.filter-value');
+    const val2 = fieldSel.closest('.filter-row').querySelector('.filter-value2');
+    if (data && data.value !== undefined) val.value = data.value;
+    if (data && data.value2 !== undefined) val2.value = data.value2;
+    toggleValue2(opSel);
+    opSel.onchange = () => toggleValue2(opSel);
+}
+
+function toggleValue2(opSel) {
+    const row = opSel.closest('.filter-row');
+    const val2 = row.querySelector('.filter-value2');
+    const val = row.querySelector('.filter-value');
+    if (opSel.value === 'between') {
+        val2.style.display = '';
+    } else if (opSel.value === 'is_null' || opSel.value === 'not_null') {
+        val2.style.display = 'none';
+        val.style.display = 'none';
+    } else {
+        val2.style.display = 'none';
+        val.style.display = '';
+    }
+}
+
+// ============ СБОРКА КОНФИГА ============
+function getReportType() {
+    return document.querySelector('input[name="rtype"]:checked').value;
+}
+
+function collectConfig() {
+    const source = currentSource;
+    const columns = [];
+    document.querySelectorAll('#columns-list .column-check:checked').forEach(cb => {
+        const field = cb.value;
+        const aggSel = document.querySelector(`.agg-select[data-field="${field}"]`);
+        if (aggSel && aggSel.value) {
+            columns.push({ field, agg: aggSel.value });
+        } else {
+            columns.push(field);
+        }
+    });
+
+    const filters = [];
+    document.querySelectorAll('.filter-row').forEach(row => {
+        const field = row.querySelector('.filter-field').value;
+        const op = row.querySelector('.filter-op').value;
+        const value = row.querySelector('.filter-value').value;
+        const value2 = row.querySelector('.filter-value2').value;
+        if (!field || !op) return;
+        const f = { field, op };
+        if (op !== 'is_null' && op !== 'not_null') {
+            f.value = value;
+            if (op === 'between') f.value2 = value2;
+        }
+        filters.push(f);
+    });
+
+    const orderField = document.getElementById('order-field').value;
+    const orderDir = document.getElementById('order-dir').value;
+    const order = orderField ? [{ field: orderField, dir: orderDir }] : [];
+
+    const limit = parseInt(document.getElementById('limit').value) || 500;
+
+    const reportType = getReportType();
+
+    if (reportType === 'kpi') {
+        // Для KPI используем первый числовой столбец с агрегацией
+        let kpiField = null;
+        let kpiAgg = 'count';
+        for (const c of columns) {
+            if (typeof c === 'object' && c.agg) {
+                kpiField = c.field;
+                kpiAgg = c.agg;
+                break;
+            }
+        }
+        return {
+            source,
+            report_type: 'kpi',
+            kpi_field: kpiField,
+            kpi_agg: kpiAgg,
+            kpi_filters: filters,
+        };
+    }
+
+    return {
+        source,
+        report_type: 'table',
+        columns,
+        filters,
+        order,
+        limit,
+    };
+}
+
+// ============ ДЕЙСТВИЯ ============
+let lastResult = null;
+
+async function runReport() {
+    const config = collectConfig();
+    const resultDiv = document.getElementById('result');
+    resultDiv.innerHTML = '<div class="text-center text-muted"><i class="fas fa-spinner fa-spin"></i> Выполняется...</div>';
+
+    try {
+        const resp = await fetch('{{ url_for("report_builder.api_run") }}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(config),
+        });
+        const data = await resp.json();
+
+        if (data.error) {
+            resultDiv.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>${data.error}</div>`;
+            lastResult = null;
+            return;
+        }
+
+        lastResult = data;
+
+        if (config.report_type === 'kpi') {
+            const v = data.data[0]?.Значение ?? 0;
+            resultDiv.innerHTML = `
+                <div class="text-center py-5">
+                    <div style="font-size: 3rem; font-weight: 700; color: #0d6efd;">
+                        ${new Intl.NumberFormat('ru-RU').format(v)}
+                    </div>
+                    <div class="text-muted mt-2">${data.columns[0]}</div>
+                </div>
+            `;
+            return;
+        }
+
+        if (!data.data.length) {
+            resultDiv.innerHTML = '<div class="alert alert-warning">Нет данных по заданным условиям.</div>';
+            return;
+        }
+
+        let html = `<div class="mb-2 text-muted small">Найдено строк: <strong>${data.count}</strong></div>`;
+        html += '<div class="table-responsive-wrapper"><table class="portal-table"><thead><tr>';
+        data.columns.forEach(c => { html += `<th>${c}</th>`; });
+        html += '</tr></thead><tbody>';
+        data.data.forEach(row => {
+            html += '<tr>';
+            data.columns.forEach(c => {
+                let v = row[c];
+                if (v === null || v === undefined) v = '—';
+                html += `<td>${v}</td>`;
+            });
+            html += '</tr>';
+        });
+        html += '</tbody></table></div>';
+        resultDiv.innerHTML = html;
+    } catch (e) {
+        resultDiv.innerHTML = `<div class="alert alert-danger">Ошибка запроса: ${e}</div>`;
+    }
+}
+
+async function saveReport() {
+    const name = document.getElementById('save-name').value.trim();
+    if (!name) {
+        alert('Укажите название отчёта');
+        return;
+    }
+    const config = collectConfig();
+    const payload = {
+        id: currentReportId,
+        name: name,
+        description: document.getElementById('save-description').value,
+        is_public: document.getElementById('save-public').checked,
+        config: config,
+    };
+    try {
+        const resp = await fetch('{{ url_for("report_builder.api_save") }}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload),
+        });
+        const data = await resp.json();
+        if (data.error) {
+            alert('Ошибка: ' + data.error);
+            return;
+        }
+        currentReportId = data.id;
+        alert(data.action === 'created' ? 'Отчёт создан' : 'Изменения сохранены');
+        if (data.action === 'created') {
+            window.location.href = '{{ url_for("report_builder.index") }}?id=' + data.id;
+        }
+    } catch (e) {
+        alert('Ошибка запроса: ' + e);
+    }
+}
+
+async function deleteReport() {
+    if (!currentReportId) return;
+    if (!confirm('Удалить отчёт?')) return;
+    try {
+        const resp = await fetch('/builder/api/' + currentReportId + '/delete', { method: 'POST' });
+        const data = await resp.json();
+        if (data.error) {
+            alert('Ошибка: ' + data.error);
+            return;
+        }
+        window.location.href = '{{ url_for("report_builder.list_page") }}';
+    } catch (e) {
+        alert('Ошибка: ' + e);
+    }
+}
+
+function exportCurrent() {
+    if (!currentReportId) {
+        alert('Сначала сохраните отчёт, затем экспортируйте');
+        return;
+    }
+    window.location.href = '/builder/' + currentReportId + '/export';
+}
+
+// ============ STARTUP ============
+$(document).ready(function() {
+    document.getElementById('source').value = currentSource;
+    document.getElementById('source').onchange = () => { updateFields(); };
+    document.querySelectorAll('input[name="rtype"]').forEach(r => {
+        r.addEventListener('change', toggleTypeUI);
+    });
+
+    updateFields();
+    initFromExisting();
+    toggleTypeUI();
+});
+
+function toggleTypeUI() {
+    const type = getReportType();
+    // KPI — прячем секции колонок/сортировки/лимита
+    document.querySelectorAll('#columns-list, #filters-list, #order-field, #order-dir, #limit').forEach(el => {
+        // ничего не прячем, но меняем заголовки
+    });
+    const label = document.querySelector('#columns-list').previousElementSibling;
+    if (label) label.textContent = type === 'kpi' ? '3. Поле и агрегация' : '3. Колонки';
+}
+</script>
+{% endblock %}

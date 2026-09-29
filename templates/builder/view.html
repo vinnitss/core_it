@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}{{ report.name }}{% endblock %}
+{% block page_title %}{{ report.name }}{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('report_builder.list_page') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="fas fa-arrow-left me-1"></i> К списку
+</a>
+{% if can_edit %}
+<a href="{{ url_for('report_builder.index', id=report.id) }}" class="btn btn-outline-primary btn-sm">
+    <i class="fas fa-edit me-1"></i> Редактировать
+</a>
+{% endif %}
+<a href="{{ url_for('report_builder.export_report', report_id=report.id) }}" class="btn btn-success btn-sm">
+    <i class="fas fa-file-excel me-1"></i> Экспорт
+</a>
+{% endblock %}
+
+{% block content %}
+
+{% if report.description %}
+<div class="alert alert-info">
+    <i class="fas fa-info-circle me-2"></i>{{ report.description }}
+</div>
+{% endif %}
+
+<div class="section-card">
+    {% if error %}
+        <div class="alert alert-danger">
+            <i class="fas fa-exclamation-triangle me-2"></i>{{ error }}
+        </div>
+    {% elif not data %}
+        <p class="text-muted">Нет данных по заданным условиям.</p>
+    {% elif report.report_type == 'kpi' %}
+        <div class="text-center py-5">
+            <div style="font-size: 3.5rem; font-weight: 700; color: #0d6efd;">
+                {{ '{:,.0f}'.format(data[0].Значение) }}
+            </div>
+            <div class="text-muted mt-2">Значение</div>
+        </div>
+    {% else %}
+        <div class="mb-2 text-muted small">Найдено строк: <strong>{{ data|length }}</strong></div>
+        <div class="table-responsive-wrapper">
+            <table class="portal-table">
+                <thead>
+                    <tr>
+                        {% for c in columns %}<th>{{ c }}</th>{% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in data %}
+                    <tr>
+                        {% for c in columns %}
+                            <td>{{ row[c] if row[c] is not none else '—' }}</td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+</div>
+
+{% endblock %}

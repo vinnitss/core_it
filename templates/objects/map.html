@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}Карта объектов{% endblock %}
+{% block page_title %}Карта объектов{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+<style>
+    #map { height: 70vh; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .object-popup { font-size: 0.85rem; }
+    .object-popup h6 { margin-bottom: 4px; font-weight: 600; }
+    .object-popup .meta { color: #6c757d; font-size: 0.75rem; }
+</style>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('objects.index') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="fas fa-list me-1"></i> Списком
+</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Фильтры -->
+<div class="section-card">
+    <form method="get" class="row g-2 align-items-end">
+        <div class="col-md-4">
+            <label class="form-label fw-bold small">Проект</label>
+            <select name="project" class="form-select form-select-sm">
+                <option value="">Все проекты</option>
+                {% for p in options.projects %}
+                <option value="{{ p }}" {% if filters.project == p %}selected{% endif %}>{{ p }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label fw-bold small">Тип</label>
+            <select name="type" class="form-select form-select-sm">
+                <option value="">Все</option>
+                {% for t in options.types %}
+                <option value="{{ t }}" {% if filters.type == t %}selected{% endif %}>{{ t }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label fw-bold small">Статус</label>
+            <select name="status" class="form-select form-select-sm">
+                <option value="">Все</option>
+                {% for s in options.statuses %}
+                <option value="{{ s }}" {% if filters.status == s %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="fas fa-filter me-1"></i>Применить
+            </button>
+            <a href="{{ url_for('objects.map_view') }}" class="btn btn-secondary btn-sm">
+                <i class="fas fa-undo me-1"></i>Сброс
+            </a>
+        </div>
+    </form>
+</div>
+
+<div id="map"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script>
+const POINTS = {{ points|tojson }};
+
+const map = L.map('map').setView([60.0, 112.0], 5);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap',
+    maxZoom: 18
+}).addTo(map);
+
+// Цвета иконок по статусу
+const COLORS = {
+    active: '#198754',
+    delayed: '#ffc107',
+    stopped: '#dc3545'
+};
+
+// Иконки по типу
+function makeIcon(type, status) {
+    const color = COLORS[status] || '#6c757d';
+    const iconChar = type === 'office' ? '🏢' : (type === 'site' ? '🏗' : '🏭');
+    return L.divIcon({
+        className: 'custom-pin',
+        html: `<div style="background:${color}; width:30px; height:30px; border-radius:50% 50% 50% 0; transform:rotate(-45deg); border:2px solid white; box-shadow:0 2px 6px rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:center;">
+                  <span style="transform:rotate(45deg); font-size:14px;">${iconChar}</span>
+               </div>`,
+        iconSize: [30, 30],
+        iconAnchor: [15, 30],
+        popupAnchor: [0, -30]
+    });
+}
+
+const markers = L.markerClusterGroup();
+
+POINTS.forEach(p => {
+    if (!p.lat || !p.lon) return;
+    const marker = L.marker([p.lat, p.lon], {
+        icon: makeIcon(p.type, p.status)
+    });
+    marker.bindPopup(`
+        <div class="object-popup">
+            <h6>${p.name}</h6>
+            <div class="meta">
+                ${p.code ? '<strong>Код:</strong> ' + p.code + '<br>' : ''}
+                ${p.project ? '<strong>Проект:</strong> ' + p.project + '<br>' : ''}
+                ${p.field ? '<strong>Месторождение:</strong> ' + p.field + '<br>' : ''}
+                <strong>Тип:</strong> ${p.type}<br>
+                <strong>Статус:</strong> ${p.status}
+            </div>
+            ${p.info ? '<hr style="margin:6px 0;"><div class="meta">' + p.info + '</div>' : ''}
+            <a href="/objects/${p.id}" style="font-size:0.8rem; margin-top:6px; display:inline-block;">Открыть карточку →</a>
+        </div>
+    `);
+    markers.addLayer(marker);
+});
+
+map.addLayer(markers);
+
+// Если все точки в одном регионе — авто-подгонка
+if (POINTS.length > 0) {
+    const bounds = L.latLngBounds(POINTS.filter(p => p.lat && p.lon).map(p => [p.lat, p.lon]));
+    if (bounds.isValid()) {
+        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 10 });
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,751 @@
+/* ============================================================
+   Корпоративный портал — общие стили каркаса
+   ============================================================ */
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    background: #f4f6f9;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 14px;
+    color: #1a2634;
+}
+
+.portal-layout {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* ---------- Sidebar ---------- */
+.portal-sidebar {
+    width: 240px;
+    background: #1a2634;
+    color: #cfd6dd;
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    overflow-y: auto;
+    transition: width 0.2s;
+    z-index: 1000;
+}
+
+.portal-sidebar::-webkit-scrollbar { width: 6px; }
+.portal-sidebar::-webkit-scrollbar-thumb { background: #2d3b4d; border-radius: 3px; }
+
+.sidebar-brand {
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid #2d3b4d;
+}
+
+.sidebar-logo {
+    height: 38px;
+    max-width: 60px;
+    object-fit: contain;
+    background: #fff;
+    border-radius: 6px;
+    padding: 3px;
+}
+
+.sidebar-logo-fallback {
+    width: 38px;
+    height: 38px;
+    background: #0d6efd;
+    color: #fff;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    align-items: center;
+    justify-content: center;
+    display: flex;
+}
+
+.sidebar-brand-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.15;
+    white-space: nowrap;
+}
+
+.sidebar-brand-text strong {
+    color: #fff;
+    font-size: 1rem;
+}
+
+.sidebar-brand-text small {
+    color: #8a99a8;
+    font-size: 0.72rem;
+}
+
+.sidebar-nav {
+    flex: 1;
+    padding: 12px 0;
+}
+
+.nav-section {
+    padding: 14px 20px 6px;
+    color: #6c7a88;
+    text-transform: uppercase;
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+}
+
+.sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 20px;
+    color: #cfd6dd;
+    text-decoration: none;
+    font-size: 0.88rem;
+    border-left: 3px solid transparent;
+    transition: background 0.15s, color 0.15s;
+}
+
+.sidebar-link i {
+    width: 18px;
+    text-align: center;
+    font-size: 0.9rem;
+    opacity: 0.85;
+}
+
+.sidebar-link:hover {
+    background: #232f3f;
+    color: #fff;
+}
+
+.sidebar-link.active {
+    background: #232f3f;
+    color: #fff;
+    border-left-color: #0d6efd;
+}
+
+.sidebar-link.active i { opacity: 1; }
+
+.sidebar-footer {
+    padding: 14px 20px;
+    font-size: 0.7rem;
+    color: #6c7a88;
+    border-top: 1px solid #2d3b4d;
+    text-align: center;
+}
+
+/* ---------- Main ---------- */
+.portal-main {
+    flex: 1;
+    margin-left: 240px;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    transition: margin-left 0.2s;
+}
+
+.portal-header {
+    background: #fff;
+    padding: 12px 25px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e9ecef;
+    position: sticky;
+    top: 0;
+    z-index: 900;
+    min-height: 60px;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.btn-sidebar-toggle {
+    background: none;
+    border: none;
+    font-size: 1.1rem;
+    color: #495057;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+}
+
+.btn-sidebar-toggle:hover {
+    background: #f1f3f5;
+}
+
+.header-page-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0;
+    color: #1a2634;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.header-user {
+    color: #495057;
+    font-size: 0.9rem;
+    font-weight: 500;
+    padding-right: 12px;
+    border-right: 1px solid #dee2e6;
+}
+
+.header-date {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.portal-content {
+    padding: 20px 25px 40px;
+    flex: 1;
+    min-width: 0;
+}
+
+/* ---------- Свёрнутый sidebar ---------- */
+body.sidebar-collapsed .portal-sidebar { width: 64px; }
+body.sidebar-collapsed .sidebar-brand-text,
+body.sidebar-collapsed .nav-section,
+body.sidebar-collapsed .sidebar-link span,
+body.sidebar-collapsed .sidebar-footer { display: none; }
+body.sidebar-collapsed .sidebar-link { justify-content: center; padding: 12px; }
+body.sidebar-collapsed .portal-main { margin-left: 64px; }
+
+/* ---------- Общие блоки карточек (для страниц) ---------- */
+.kpi-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 22px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    text-align: center;
+    margin-bottom: 20px;
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+.kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.1);
+}
+.kpi-icon { font-size: 1.6rem; margin-bottom: 8px; opacity: 0.75; }
+.kpi-value { font-size: 1.55rem; font-weight: 700; margin-bottom: 2px; }
+.kpi-label {
+    color: #6c757d; font-size: 0.82rem;
+    text-transform: uppercase; letter-spacing: 0.3px;
+}
+
+.section-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 22px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    margin-bottom: 22px;
+}
+
+/* Таблицы компактнее */
+.portal-content table { font-size: 0.82rem; }
+.portal-content table thead th { white-space: nowrap; }
+
+.attention-card {
+    display: block;
+    padding: 16px 18px;
+    border-radius: 10px;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.15s;
+    border-left: 4px solid transparent;
+}
+.attention-card:hover { background: #f8f9fc; color: inherit; }
+.attention-card.danger { border-left-color: #dc3545; }
+.attention-card.warning { border-left-color: #ffc107; }
+.attention-card.info { border-left-color: #17a2b8; }
+.attention-card.secondary { border-left-color: #6c757d; }
+.attention-count { font-size: 1.5rem; font-weight: 700; line-height: 1; }
+.attention-label { font-size: 0.85rem; color: #495057; margin-top: 4px; }
+.attention-zero { opacity: 0.45; }
+
+/* Скрываем уменьшенный логотип в развёрнутом состоянии */
+.logo-collapsed {
+    display: none;
+}
+
+/* При сворачивании sidebar: показываем маленький логотип, скрываем большой */
+body.sidebar-collapsed .logo-expanded {
+    display: none;
+}
+body.sidebar-collapsed .logo-collapsed {
+    display: block;
+}
+
+/* Подгоняем отступы бренд-блока в свёрнутом состоянии */
+body.sidebar-collapsed .sidebar-brand {
+    padding: 15px 12px;
+    justify-content: center;
+}
+body.sidebar-collapsed .sidebar-logo {
+    height: 40px;
+    max-width: 44px;
+    padding: 0;
+}
+
+/* ============================================================
+   ЕДИНЫЙ ШАБЛОН ТАБЛИЦ
+   ============================================================ */
+
+/* Обёртка: горизонтальный скролл на маленьких экранах */
+.table-responsive-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 10px;
+}
+
+/* Базовый класс — используйте вместе с таблицей */
+.portal-table {
+    width: 100%;
+    font-size: 0.85rem;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: #fff;
+    margin: 0;
+}
+
+/* Заголовки — прилипают при скролле */
+.portal-table thead th {
+    background: #f8f9fc;
+    color: #1a2634;
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    padding: 10px 12px;
+    border-bottom: 2px solid #e9ecef;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    user-select: none;
+}
+
+/* Ячейки */
+.portal-table tbody td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #f1f3f5;
+    vertical-align: middle;
+    word-break: break-word;
+}
+
+.portal-table tbody tr:hover {
+    background-color: #f8f9fc;
+    transition: background-color 0.1s;
+}
+
+.portal-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Числовые столбцы — выравнивание вправо, моноширинный */
+.portal-table .num-cell {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+/* Компактный вариант — для больших таблиц */
+.portal-table.compact tbody td,
+.portal-table.compact thead th {
+    padding: 5px 8px;
+    font-size: 0.78rem;
+}
+
+/* Цветные ячейки (акценты) */
+.portal-table .cell-danger  { color: #dc3545; font-weight: 600; }
+.portal-table .cell-success { color: #198754; font-weight: 600; }
+.portal-table .cell-warning { color: #997404; font-weight: 600; }
+.portal-table .cell-muted   { color: #6c757d; }
+
+/* Ссылка-строка: кликабельный номер */
+.portal-table .row-link {
+    color: #0d6efd;
+    text-decoration: none;
+    font-weight: 600;
+}
+.portal-table .row-link:hover {
+    text-decoration: underline;
+}
+
+/* Полоска слева для проблемных строк */
+.portal-table tr.row-problem td:first-child {
+    box-shadow: inset 3px 0 0 #dc3545;
+}
+.portal-table tr.row-warning td:first-child {
+    box-shadow: inset 3px 0 0 #ffc107;
+}
+
+/* ============================================================
+   АДАПТИВНОСТЬ
+   ============================================================ */
+
+/* Планшеты (≤1200px) */
+@media (max-width: 1200px) {
+    .portal-table { font-size: 0.8rem; }
+    .portal-table thead th { font-size: 0.72rem; padding: 8px 10px; }
+    .portal-table tbody td { padding: 6px 10px; }
+}
+
+/* Небольшие планшеты (≤992px) */
+@media (max-width: 992px) {
+    .portal-table { font-size: 0.78rem; }
+    .portal-table thead th { font-size: 0.7rem; padding: 7px 8px; }
+    .portal-table tbody td { padding: 6px 8px; }
+
+    /* Классы для скрытия колонок */
+    .portal-table .hide-md { display: none !important; }
+}
+
+/* Мобильные (≤768px) */
+@media (max-width: 768px) {
+    .portal-table { font-size: 0.75rem; }
+    .portal-table thead th { font-size: 0.68rem; padding: 6px 6px; }
+    .portal-table tbody td { padding: 5px 6px; }
+
+    .portal-table .hide-sm { display: none !important; }
+}
+
+/* Маленькие телефоны (≤576px) */
+@media (max-width: 576px) {
+    .portal-table { font-size: 0.7rem; }
+    .portal-table thead th { font-size: 0.65rem; padding: 5px 5px; }
+    .portal-table tbody td { padding: 5px 5px; }
+
+    .portal-table .hide-xs { display: none !important; }
+}
+
+/* Пагинация и фильтры DataTables — единый стиль */
+.dataTables_wrapper .dataTables_length,
+.dataTables_wrapper .dataTables_filter {
+    margin-bottom: 12px;
+    font-size: 0.85rem;
+}
+
+.dataTables_wrapper .dataTables_length select,
+.dataTables_wrapper .dataTables_filter input {
+    border-radius: 6px;
+    border: 1px solid #ced4da;
+    padding: 4px 8px;
+    font-size: 0.85rem;
+}
+
+.dataTables_wrapper .dataTables_info,
+.dataTables_wrapper .dataTables_paginate {
+    margin-top: 10px;
+    font-size: 0.85rem;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+    border-radius: 6px !important;
+    padding: 4px 10px !important;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.current {
+    background: #0d6efd !important;
+    color: #fff !important;
+    border: 1px solid #0d6efd !important;
+}
+
+/* Мобильный DataTables (Responsive) */
+.dtr-details {
+    font-size: 0.8rem;
+}
+.dtr-details li {
+    padding: 3px 0;
+}
+.dtr-details li span.dtr-title {
+    font-weight: 600;
+    color: #495057;
+    display: inline-block;
+    min-width: 130px;
+}
+/* ============================================================
+   СПРАВКА (HELP)
+   ============================================================ */
+.help-nav-card {
+    position: sticky;
+    top: 80px;
+}
+
+.help-nav .nav-link {
+    padding: 8px 12px;
+    border-radius: 6px;
+    color: #495057;
+    font-size: 0.88rem;
+    margin-bottom: 2px;
+}
+
+.help-nav .nav-link:hover {
+    background: #f1f3f5;
+    color: #1a2634;
+}
+
+.help-nav .nav-link.active {
+    background: #0d6efd;
+    color: #fff;
+    font-weight: 500;
+}
+
+.help-content {
+    font-size: 0.92rem;
+    line-height: 1.65;
+    color: #1a2634;
+}
+
+.help-content h1 {
+    font-size: 1.7rem;
+    margin-top: 0;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #e9ecef;
+    color: #1a2634;
+}
+
+.help-content h2 {
+    font-size: 1.3rem;
+    margin-top: 2rem;
+    margin-bottom: 0.8rem;
+    padding-bottom: 0.3rem;
+    border-bottom: 1px solid #e9ecef;
+    color: #1a2634;
+}
+
+.help-content h3 {
+    font-size: 1.1rem;
+    margin-top: 1.5rem;
+    margin-bottom: 0.6rem;
+    color: #1a2634;
+}
+
+.help-content h4 {
+    font-size: 1rem;
+    margin-top: 1.2rem;
+    margin-bottom: 0.5rem;
+    color: #495057;
+}
+
+.help-content p {
+    margin-bottom: 0.9rem;
+}
+
+.help-content code {
+    background: #f4f6f9;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    color: #d63384;
+    font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.help-content pre {
+    background: #1a2634;
+    color: #cfd6dd;
+    padding: 15px 18px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin-bottom: 1rem;
+}
+
+.help-content pre code {
+    background: none;
+    color: inherit;
+    padding: 0;
+    font-size: 0.85em;
+}
+
+.help-content table {
+    width: 100%;
+    margin: 1rem 0;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.help-content table th,
+.help-content table td {
+    padding: 8px 12px;
+    border: 1px solid #e9ecef;
+    vertical-align: top;
+}
+
+.help-content table th {
+    background: #f8f9fc;
+    font-weight: 600;
+    text-align: left;
+}
+
+.help-content table tr:nth-child(even) td {
+    background: #fafbfc;
+}
+
+.help-content blockquote {
+    border-left: 4px solid #0d6efd;
+    padding-left: 15px;
+    margin: 1rem 0;
+    color: #495057;
+    background: #f8f9fc;
+    padding: 10px 15px;
+    border-radius: 0 6px 6px 0;
+}
+
+.help-content blockquote p:last-child {
+    margin-bottom: 0;
+}
+
+.help-content ul,
+.help-content ol {
+    padding-left: 1.8rem;
+    margin-bottom: 1rem;
+}
+
+.help-content li {
+    margin-bottom: 0.35rem;
+}
+
+.help-content hr {
+    margin: 2rem 0;
+    border: 0;
+    border-top: 1px solid #e9ecef;
+}
+
+.help-content img {
+    max-width: 100%;
+    border-radius: 8px;
+}
+
+.help-content a {
+    color: #0d6efd;
+    text-decoration: none;
+}
+
+.help-content a:hover {
+    text-decoration: underline;
+}
+
+/* Контейнер таблицы с закреплённой шапкой */
+.table-sticky-wrap {
+    max-height: 72vh;
+    overflow-y: auto;
+    overflow-x: auto;
+    border-radius: 10px;
+    position: relative;
+}
+
+.table-sticky-wrap .portal-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: #f8f9fc;
+}
+
+.table-sticky-wrap .portal-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    background: #f8f9fc;
+    box-shadow: 0 1px 0 #dee2e6;
+}
+
+@media (max-width: 768px) {
+    .table-sticky-wrap { max-height: 60vh; }
+}
+
+/* ============================================================
+   SIDEBAR: разделы и действия
+   ============================================================ */
+.sidebar-section-title {
+    padding: 12px 20px 8px;
+    color: #6c7a88;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    border-top: 1px solid #2d3b4d;
+    margin-top: 8px;
+}
+
+.sidebar-section-title:hover {
+    color: #cfd6dd;
+}
+
+.section-toggle-icon {
+    font-size: 0.65rem;
+    transition: transform 0.2s;
+    display: inline-block;
+}
+
+.section-toggle-icon.collapsed {
+    transform: rotate(-90deg);
+}
+
+.sidebar-section-body {
+    /* Состояние управляется через inline-style в JS */
+}
+
+/* Действия на строке раздела */
+.sidebar-link {
+    position: relative;
+}
+
+.sidebar-link .link-actions {
+    display: none;
+    margin-left: auto;
+    gap: 3px;
+    padding-left: 6px;
+}
+
+.sidebar-link:hover .link-actions {
+    display: flex;
+}
+
+.link-action {
+    background: none;
+    border: none;
+    color: #8a99a8;
+    padding: 3px 5px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: background 0.12s, color 0.12s;
+}
+
+.link-action:hover {
+    color: #fff;
+    background: #2d3b4d;
+}
+
+.sidebar-link.pinned .icon-unpin {
+    color: #ffc107;
+}
+
+.sidebar-link.pinned:hover .icon-unpin {
+    color: #ffd95e;
+}
+
+/* В свёрнутом sidebar прячем блок действий и раздел "Все разделы" */
+body.sidebar-collapsed .sidebar-section-title,
+body.sidebar-collapsed .sidebar-section-body,
+body.sidebar-collapsed .link-actions {
+    display: none !important;
+}

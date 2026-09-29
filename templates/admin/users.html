@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}Пользователи{% endblock %}
+{% block page_title %}Управление пользователями{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('admin.user_create') }}" class="btn btn-primary btn-sm">
+    <i class="fas fa-user-plus me-1"></i> Добавить пользователя
+</a>
+{% endblock %}
+
+{% block content %}
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+{% endwith %}
+
+<div class="section-card">
+    <table class="table table-sm table-striped mb-0" id="usersTable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Email</th>
+                <th>Роль</th>
+                <th>ЦФО</th>
+                <th>Импорт</th>
+                <th>Активен</th>
+                <th>Последний вход</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in users %}
+            <tr>
+                <td>{{ u.id }}</td>
+                <td>{{ u.email }}</td>
+                <td>
+                    {% if u.role == 'admin' %}
+                        <span class="badge bg-danger">admin</span>
+                    {% elif u.role == 'manager' %}
+                        <span class="badge bg-warning text-dark">manager</span>
+                    {% else %}
+                        <span class="badge bg-secondary">viewer</span>
+                    {% endif %}
+                </td>
+                <td>{{ u.цфо or '—' }}</td>
+                <td>{% if u.can_import %}<i class="fas fa-check text-success"></i>{% else %}—{% endif %}</td>
+                <td>{% if u.is_active %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %}</td>
+                <td>{{ u.last_login.strftime('%d.%m.%Y %H:%M') if u.last_login else '—' }}</td>
+                <td>
+                    <a href="{{ url_for('admin.user_edit', user_id=u.id) }}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                    {% if u.id != current_user.id %}
+                    <button type="button" class="btn btn-sm btn-outline-warning"
+                            data-bs-toggle="modal" data-bs-target="#resetModal{{ u.id }}">
+                        <i class="fas fa-key"></i>
+                    </button>
+
+                    <div class="modal fade" id="resetModal{{ u.id }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <form method="post" action="{{ url_for('admin.user_reset_password', user_id=u.id) }}">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Сброс пароля — {{ u.email }}</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <label class="form-label">Новый временный пароль (минимум 8 символов)</label>
+                                        <input type="text" name="new_password" class="form-control" required minlength="8">
+                                        <small class="text-muted">При следующем входе пользователь обязан сменить пароль.</small>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                                        <button type="submit" class="btn btn-warning">Сбросить</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    $('#usersTable').DataTable({
+        pageLength: 25,
+        order: [[0, 'asc']],
+        language: { url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/ru.json" }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Загрузка объектов{% endblock %}
+{% block page_title %}Загрузка объектов из CSV{% endblock %}
+
+{% block content %}
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="section-card">
+            <h5><i class="fas fa-file-csv me-2"></i>Файл CSV</h5>
+            <p class="text-muted small">
+                Разделитель — <code>;</code>. Кодировка — UTF-8 или cp1251.<br>
+                Обязательные столбцы: <code>name</code>.<br>
+                Опциональные: <code>code</code>, <code>type</code>, <code>status</code>,
+                <code>project</code>, <code>field</code>, <code>lat</code>, <code>lon</code>,
+                <code>info</code>, <code>ответственный</code>.
+            </p>
+
+            <form method="post" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <input type="file" name="file" class="form-control" accept=".csv" required>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-cloud-upload-alt me-1"></i>Загрузить
+                </button>
+                <a href="{{ url_for('objects.index') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>К списку
+                </a>
+            </form>
+        </div>
+
+        {% if result %}
+        <div class="section-card">
+            <h5><i class="fas fa-check-circle text-success me-2"></i>Результат</h5>
+            <ul class="mb-0">
+                <li>Всего строк в файле: <strong>{{ result.total }}</strong></li>
+                <li>Добавлено: <strong class="text-success">{{ result.added }}</strong></li>
+                <li>Обновлено: <strong class="text-warning">{{ result.updated }}</strong></li>
+            </ul>
+        </div>
+        {% endif %}
+
+        <div class="section-card">
+            <h5><i class="fas fa-lightbulb text-warning me-2"></i>После загрузки</h5>
+            <p class="small mb-0">
+                Если объекты загрузились без кодов — нажмите «Присвоить коды» в шапке списка объектов.
+                Коды будут присвоены автоматически в формате <code>001</code>, <code>002</code> и т.д.
+            </p>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

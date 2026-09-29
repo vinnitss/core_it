@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}Договоры и расчёты{% endblock %}
+{% block page_title %}Договоры и расчёты{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('dashboard.export_contracts') }}" class="btn btn-success btn-sm">
+    <i class="fas fa-file-excel me-1"></i> Экспорт всех договоров
+</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Фильтры -->
+<div class="section-card">
+    <form method="get" class="row g-2 align-items-end">
+        <div class="col-md-3">
+            <label class="form-label fw-bold small">Ответственный</label>
+            <select name="ответственный" class="form-select form-select-sm">
+                <option value="">Все ответственные</option>
+                {% for r in options.responsibles %}
+                <option value="{{ r }}" {% if filters.ответственный == r %}selected{% endif %}>{{ r }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label fw-bold small">Признак оплаты</label>
+            <select name="payment_mode" class="form-select form-select-sm">
+                <option value="">Все</option>
+                <option value="advance" {% if filters.payment_mode == 'advance' %}selected{% endif %}>Аванс</option>
+                <option value="repayment" {% if filters.payment_mode == 'repayment' %}selected{% endif %}>Погашение</option>
+            </select>
+        </div>
+        <div class="col-md-5">
+            <label class="form-label fw-bold small">Показать только проблемные</label>
+            <div class="d-flex gap-3 flex-wrap">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="flag" value="expiring"
+                           id="flagExpiring" {% if 'expiring' in filters.flags %}checked{% endif %}>
+                    <label class="form-check-label small" for="flagExpiring">
+                        <i class="fas fa-clock text-warning me-1"></i>Истекает срок
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="flag" value="limit"
+                           id="flagLimit" {% if 'limit' in filters.flags %}checked{% endif %}>
+                    <label class="form-check-label small" for="flagLimit">
+                        <i class="fas fa-exclamation-triangle text-danger me-1"></i>Лимит исчерпан
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="flag" value="mismatch"
+                           id="flagMismatch" {% if 'mismatch' in filters.flags %}checked{% endif %}>
+                    <label class="form-check-label small" for="flagMismatch">
+                        <i class="fas fa-balance-scale text-danger me-1"></i>Расхождение
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="flag" value="forecast_critical"
+                           id="flagForecast" {% if 'forecast_critical' in filters.flags %}checked{% endif %}>
+                    <label class="form-check-label small" for="flagForecast">
+                        <i class="fas fa-fire text-danger me-1"></i>Скоро исчерпание
+                    </label>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="fas fa-filter me-1"></i>Применить
+            </button>
+            <a href="{{ url_for('contracts.index') }}" class="btn btn-secondary btn-sm">
+                <i class="fas fa-undo me-1"></i>Сброс
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Сводка -->
+<div class="section-card">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">
+            <i class="fas fa-file-contract me-2"></i>Договоры
+            <span class="text-muted small ms-2">({{ contracts|length }})</span>
+        </h5>
+    </div>
+
+    {% if contracts %}
+    <div class="table-sticky-wrap">
+        <table class="portal-table" data-table data-order-col="1">
+            <thead>
+                <tr>
+                    <th>Код</th>
+                    <th>Контрагент</th>
+                    <th class="hide-md">Ответственный</th>
+                    <th class="num-cell">Лимит</th>
+                    <th class="num-cell">Потрачено</th>
+                    <th class="num-cell hide-xs">Остаток</th>
+                    <th class="num-cell">КЗ</th>
+                    <th class="num-cell hide-md">ДЗ</th>
+                    <th class="num-cell">Заявки</th>
+                    <th class="num-cell">Расхождение</th>
+                    <th>Признак</th>
+                    <th class="hide-md">Прогноз</th>
+                    <th>Дата окончания</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in contracts %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('contracts.detail', contract_code=c.external_code) }}"
+                           class="row-link">
+                            {{ c.contract_number or c.external_code }}
+                        </a>
+                    </td>
+                    <td>
+                        {{ c.counterparty or '—' }}
+                        {% if c.has_mismatch %}
+                            <i class="fas fa-balance-scale text-danger ms-1" title="Расхождение КЗ и заявок"></i>
+                        {% endif %}
+                    </td>
+                    <td class="hide-md small text-muted">{{ c.ответственный or '—' }}</td>
+                    <td class="num-cell">{{ '{:,.0f}'.format(c.amount) if c.amount else '—' }}</td>
+                    <td class="num-cell">{{ '{:,.0f}'.format(c.spent) if c.spent else '—' }}</td>
+                    <td class="num-cell hide-xs {% if c.remainder < 0 %}cell-danger{% endif %}">
+                        {% if c.amount %}{{ '{:,.0f}'.format(c.remainder) }}{% else %}—{% endif %}
+                    </td>
+                    <td class="num-cell">{{ '{:,.0f}'.format(c.kz) if c.kz else '—' }}</td>
+                    <td class="num-cell hide-md">{{ '{:,.0f}'.format(c.dz) if c.dz else '—' }}</td>
+                    <td class="num-cell">{{ '{:,.0f}'.format(c.unpaid_sum) if c.unpaid_sum else '—' }}</td>
+                    <td class="num-cell {% if c.diff > 1 or c.diff < -1 %}cell-danger{% endif %}">
+                        {% if c.kz or c.unpaid_sum %}{{ '{:,.0f}'.format(c.diff) }}{% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if c.has_advance and c.has_repayment %}
+                            <span class="badge bg-info text-dark me-1">Аванс</span>
+                            <span class="badge bg-secondary">Погаш.</span>
+                        {% elif c.has_advance %}
+                            <span class="badge bg-info text-dark">Аванс</span>
+                        {% elif c.has_repayment %}
+                            <span class="badge bg-secondary">Погаш.</span>
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="hide-md">
+                        {% if c.forecast_date %}
+                            {% if c.forecast_critical %}
+                                <span class="badge bg-danger">
+                                    <i class="fas fa-fire me-1"></i>{{ c.forecast_date }}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-light text-dark">{{ c.forecast_date }}</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="text-muted small">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if c.no_end_date %}
+                            <span class="badge bg-secondary">Не указан</span>
+                        {% elif c.overdue %}
+                            <span class="badge bg-danger">{{ c.end_date }} ⚠</span>
+                        {% elif c.expiring %}
+                            <span class="badge bg-warning text-dark">{{ c.end_date }}</span>
+                        {% else %}
+                            {{ c.end_date }}
+                        {% endif %}
+                        {% if c.has_prolongation %}
+                            <i class="fas fa-sync-alt text-success ms-1"
+                               title="Договор продлевается: {{ c.условия_пролонгации }}"></i>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-muted mb-0">Нет договоров, соответствующих фильтрам.</p>
+    {% endif %}
+</div>
+
+{% endblock %}

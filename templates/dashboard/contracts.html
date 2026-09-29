@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Дашборд договоров{% endblock %}
+{% block page_title %}Дашборд договоров{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('dashboard.export_contracts') }}" class="btn btn-success btn-sm">
+    <i class="fas fa-file-excel me-1"></i> Экспорт
+</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Фильтры -->
+<div class="section-card">
+    <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-3">
+            <label class="form-label fw-bold small">Ответственный</label>
+            <select name="ответственный" class="form-select form-select-sm">
+                <option value="">Все ответственные</option>
+                {% for r in options.responsibles %}
+                <option value="{{ r }}" {% if filters.ответственный == r %}selected{% endif %}>{{ r }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-7">
+            <label class="form-label fw-bold small">Показать только проблемные</label>
+            <div class="d-flex gap-3 flex-wrap">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="flag" value="expiring"
+                           id="flagExpiring" {% if 'expiring' in filters.flags %}checked{% endif %}>
+                    <label class="form-check-label" for="flagExpiring">
+                        <i class="fas fa-clock text-warning me-1"></i>Истекает срок
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="flag" value="limit"
+                           id="flagLimit" {% if 'limit' in filters.flags %}checked{% endif %}>
+                    <label class="form-check-label" for="flagLimit">
+                        <i class="fas fa-exclamation-triangle text-danger me-1"></i>Лимит исчерпан
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="flag" value="no_end_date"
+                           id="flagNoEnd" {% if 'no_end_date' in filters.flags %}checked{% endif %}>
+                    <label class="form-check-label" for="flagNoEnd">
+                        <i class="fas fa-question-circle text-secondary me-1"></i>Срок не указан
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="flag" value="forecast_critical"
+                           id="flagForecast" {% if 'forecast_critical' in filters.flags %}checked{% endif %}>
+                    <label class="form-check-label" for="flagForecast">
+                        <i class="fas fa-fire text-danger me-1"></i>Скоро исчерпание
+                    </label>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="fas fa-filter me-1"></i>Применить
+            </button>
+            <a href="{{ url_for('contracts.index') }}" class="btn btn-secondary btn-sm">
+                <i class="fas fa-undo me-1"></i>Сбросить
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Таблица договоров -->
+<div class="section-card">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">
+            <i class="fas fa-file-contract me-2"></i>Договоры
+            <span class="text-muted small ms-2">({{ data.contracts|length }})</span>
+        </h5>
+    </div>
+
+    {% if data.contracts %}
+    <div class="table-responsive-wrapper">
+        <table class="portal-table" data-table data-order-col="0" data-order-dir="asc">
+            <thead>
+                <tr>
+                    <th>Договор</th>
+                    <th>Контрагент</th>
+                    <th class="hide-sm">Ответственный</th>
+                    <th class="num-cell">Потрачено</th>
+                    <th class="num-cell hide-xs">Лимит</th>
+                    <th class="num-cell">Остаток</th>
+                    <th class="hide-md">Прогноз исчерпания</th>
+                    <th>Дата окончания</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in data.contracts %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('contracts.detail', contract_code=c.external_code) }}"
+                           class="row-link">
+                            {{ c.contract_number or c.external_code }}
+                        </a>
+                    </td>
+                    <td>{{ c.counterparty }}</td>
+                    <td class="hide-sm cell-muted small">{{ c.ответственный or '—' }}</td>
+                    <td class="num-cell">
+                        {{ '{:,.0f}'.format(c.spent) }}
+                    </td>
+                    <td class="num-cell hide-xs">
+                        {{ '{:,.0f}'.format(c.amount) }}
+                    </td>
+                    <td class="num-cell {% if c.remainder < 0 %}cell-danger{% endif %}">
+                        {% if c.amount %}
+                            {{ '{:,.0f}'.format(c.remainder) }}
+                        {% else %}
+                            —
+                        {% endif %}
+                        {% if c.limit_exceeded %}
+                            <i class="fas fa-exclamation-triangle text-danger ms-1" title="Лимит исчерпан (>90%)"></i>
+                        {% endif %}
+                    </td>
+                    <td class="hide-md">
+                        {% if c.forecast_days is not none %}
+                            {% if c.forecast_critical %}
+                                <span class="badge bg-danger" title="~{{ c.forecast_days }} дней до исчерпания">
+                                    <i class="fas fa-fire me-1"></i>{{ c.forecast_date }}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-light text-dark">
+                                    <i class="fas fa-chart-line me-1"></i>{{ c.forecast_date }}
+                                </span>
+                            {% endif %}
+                        {% else %}
+                            <span class="text-muted small">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if c.no_end_date %}
+                            <span class="badge bg-secondary">
+                                <i class="fas fa-question-circle me-1"></i>Не указан
+                            </span>
+                        {% elif c.overdue %}
+                            <span class="badge bg-danger">
+                                <i class="fas fa-times-circle me-1"></i>{{ c.end_date }} (просрочен)
+                            </span>
+                        {% elif c.expiring %}
+                            <span class="badge bg-warning text-dark">
+                                <i class="fas fa-clock me-1"></i>{{ c.end_date }}
+                            </span>
+                        {% else %}
+                            {{ c.end_date }}
+                        {% endif %}
+                        {% if c.has_prolongation %}
+                            <i class="fas fa-sync-alt text-success ms-1"
+                               title="Договор продлевается: {{ c.условия_пролонгации }}"></i>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-muted mb-0">Нет договоров, соответствующих фильтрам.</p>
+    {% endif %}
+</div>
+
+{% endblock %}

@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block title %}Средние расходы{% endblock %}
+{% block page_title %}Средние расходы{% endblock %}
+
+{% block content %}
+
+<!-- KPI -->
+<div class="row">
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <div class="kpi-value text-primary">{{ '{:,.0f}'.format(data.kpi.total) }}</div>
+            <div class="kpi-label">Общая сумма расходов</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <div class="kpi-value">{{ data.kpi.count }}</div>
+            <div class="kpi-label">Заявок</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <div class="kpi-value text-success">{{ '{:,.0f}'.format(data.kpi.avg) }}</div>
+            <div class="kpi-label">Средний чек</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <div class="kpi-value text-warning">{{ data.kpi.contractors }}</div>
+            <div class="kpi-label">Контрагентов / {{ data.kpi.projects }} проектов</div>
+        </div>
+    </div>
+</div>
+
+<!-- Период -->
+<div class="section-card">
+    <div class="d-flex align-items-center">
+        <label class="me-3 fw-bold">Период:</label>
+        <div class="btn-group btn-group-sm" role="group">
+            <a href="?period=6m" class="btn {% if period == '6m' %}btn-primary{% else %}btn-outline-primary{% endif %}">6 месяцев</a>
+            <a href="?period=12m" class="btn {% if period == '12m' %}btn-primary{% else %}btn-outline-primary{% endif %}">12 месяцев</a>
+            <a href="?period=24m" class="btn {% if period == '24m' %}btn-primary{% else %}btn-outline-primary{% endif %}">2 года</a>
+            <a href="?period=all" class="btn {% if period == 'all' %}btn-primary{% else %}btn-outline-primary{% endif %}">Всё время</a>
+        </div>
+    </div>
+</div>
+
+<!-- График -->
+<div class="section-card">
+    <h5><i class="fas fa-chart-line me-2"></i>Динамика расходов по месяцам</h5>
+    <canvas id="spendingChart" height="90"></canvas>
+</div>
+
+<!-- По проектам -->
+<div class="section-card">
+    <h5><i class="fas fa-folder me-2"></i>По проектам</h5>
+    <div class="table-responsive-wrapper">
+        <table class="portal-table" data-table data-order-col="2" data-order-dir="desc">
+            <thead>
+                <tr>
+                    <th>Проект</th>
+                    <th class="num-cell">Заявок</th>
+                    <th class="num-cell">Сумма</th>
+                    <th class="num-cell">Средний чек</th>
+                    <th class="hide-md">Топ-контрагент</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in data.by_project %}
+                <tr>
+                    <td>{{ row.project }}</td>
+                    <td class="num-cell">{{ row.cnt }}</td>
+                    <td class="num-cell fw-bold">{{ '{:,.0f}'.format(row.total) }}</td>
+                    <td class="num-cell">{{ '{:,.0f}'.format(row.avg_check) }}</td>
+                    <td class="hide-md cell-muted small">{{ row.top_contractor or '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- По контрагентам -->
+<div class="section-card">
+    <h5><i class="fas fa-building me-2"></i>По контрагентам (топ-100)</h5>
+    <div class="table-responsive-wrapper">
+        <table class="portal-table" data-table data-order-col="2" data-order-dir="desc">
+            <thead>
+                <tr>
+                    <th>Контрагент</th>
+                    <th class="num-cell">Заявок</th>
+                    <th class="num-cell">Сумма</th>
+                    <th class="num-cell">Средний чек</th>
+                    <th class="hide-md">Топ-проект</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in data.by_contractor %}
+                <tr>
+                    <td>{{ row.контрагент }}</td>
+                    <td class="num-cell">{{ row.cnt }}</td>
+                    <td class="num-cell fw-bold">{{ '{:,.0f}'.format(row.total) }}</td>
+                    <td class="num-cell">{{ '{:,.0f}'.format(row.avg_check) }}</td>
+                    <td class="hide-md cell-muted small">{{ row.top_project or '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- По договорам -->
+<div class="section-card">
+    <h5><i class="fas fa-file-contract me-2"></i>По договорам (топ-100)</h5>
+    <div class="table-responsive-wrapper">
+        <table class="portal-table" data-table data-order-col="4" data-order-dir="desc">
+            <thead>
+                <tr>
+                    <th>Договор</th>
+                    <th class="hide-sm">Контрагент</th>
+                    <th class="num-cell">Заявок</th>
+                    <th class="num-cell">Сумма</th>
+                    <th class="num-cell">Лимит</th>
+                    <th class="num-cell">Освоение</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in data.by_contract %}
+                <tr>
+                    <td>
+                        {% if row.external_code %}
+                            <a href="{{ url_for('contracts.detail', contract_code=row.external_code) }}"
+                               class="row-link">
+                                {{ row.contract_number or row.external_code }}
+                            </a>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td class="hide-sm">{{ row.counterparty }}</td>
+                    <td class="num-cell">{{ row.cnt }}</td>
+                    <td class="num-cell fw-bold">{{ '{:,.0f}'.format(row.total) }}</td>
+                    <td class="num-cell">{{ '{:,.0f}'.format(row.limit_amount) if row.limit_amount else '—' }}</td>
+                    <td class="num-cell {% if row.usage_pct and row.usage_pct > 90 %}cell-danger{% elif row.usage_pct and row.usage_pct > 70 %}cell-warning{% endif %}">
+                        {% if row.usage_pct %}{{ '%.0f'|format(row.usage_pct) }}%{% else %}—{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const monthly = {{ data.monthly|tojson }};
+
+new Chart(document.getElementById('spendingChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+        labels: monthly.map(m => m.month),
+        datasets: [
+            {
+                label: 'Сумма расходов',
+                data: monthly.map(m => m.total),
+                backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1,
+                yAxisID: 'y'
+            },
+            {
+                label: 'Количество заявок',
+                data: monthly.map(m => m.cnt),
+                type: 'line',
+                borderColor: 'rgba(255, 99, 132, 1)',
+                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                tension: 0.3,
+                yAxisID: 'y1'
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        interaction: { mode: 'index', intersect: false },
+        scales: {
+            y: {
+                type: 'linear',
+                position: 'left',
+                title: { display: true, text: 'Сумма, ₽' },
+                ticks: {
+                    callback: (v) => new Intl.NumberFormat('ru-RU', {
+                        notation: 'compact', compactDisplay: 'short'
+                    }).format(v)
+                }
+            },
+            y1: {
+                type: 'linear',
+                position: 'right',
+                title: { display: true, text: 'Заявок' },
+                grid: { drawOnChartArea: false }
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}Задолженность{% endblock %}
+{% block page_title %}Задолженность{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('debts.export', **filters) }}" class="btn btn-success btn-sm">
+    <i class="fas fa-file-excel me-1"></i> Экспорт
+</a>
+{% endblock %}
+
+{% block content %}
+
+{% if summary.imported_at %}
+<div class="section-card" style="background: #fff3cd; border-left: 4px solid #ffc107;">
+    <i class="fas fa-calendar-check me-2"></i>
+    <strong>Данные актуальны на:</strong> {{ summary.imported_at.strftime('%d.%m.%Y %H:%M') }}
+</div>
+{% else %}
+<div class="alert alert-warning">
+    Данные задолженности ещё не загружены.
+    <a href="{{ url_for('import.import_page') }}">Загрузить</a>.
+</div>
+{% endif %}
+
+<!-- KPI -->
+<div class="row">
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <div class="kpi-value text-danger">{{ '{:,.0f}'.format(summary.kz_total) }}</div>
+            <div class="kpi-label">Кредиторская задолженность</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <div class="kpi-value text-primary">{{ '{:,.0f}'.format(summary.dz_total) }}</div>
+            <div class="kpi-label">Дебиторская задолженность</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <div class="kpi-value text-warning">{{ '{:,.0f}'.format(summary.unpaid_applications_total) }}</div>
+            <div class="kpi-label">Неоплаченные заявки</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <div class="kpi-value {% if summary.kz_total - summary.unpaid_applications_total > 1 or summary.kz_total - summary.unpaid_applications_total < -1 %}text-danger{% else %}text-success{% endif %}">
+                {{ '{:,.0f}'.format(summary.kz_total - summary.unpaid_applications_total) }}
+            </div>
+            <div class="kpi-label">Расхождение КЗ и заявок</div>
+        </div>
+    </div>
+</div>
+
+<!-- Сверка по договорам -->
+<div class="section-card">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">
+            <i class="fas fa-balance-scale me-2"></i>Сверка по договорам
+            <span class="text-muted small ms-2">({{ reconciliation|length }})</span>
+        </h5>
+    </div>
+
+    <div class="table-sticky-wrap">
+        <table id="reconciliationTable" class="portal-table" data-table data-order-col="0">
+            <thead>
+                <tr>
+                    <th>Код договора</th>
+                    <th>Наименование</th>
+                    <th class="hide-sm">Контрагент</th>
+                    <th class="num-cell">КЗ</th>
+                    <th class="num-cell hide-md">ДЗ</th>
+                    <th class="num-cell">Неоплачено (заявки)</th>
+                    <th>Признак оплаты</th>
+                    <th class="num-cell">Расхождение</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in reconciliation %}
+                <tr>
+                    <td>
+                        {% if row.contract_code %}
+                            <a href="{{ url_for('contracts.detail', contract_code=row.contract_code) }}"
+                               class="row-link">
+                                {{ row.contract_code }}
+                            </a>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>{{ row.договор_наименование }}</td>
+                    <td class="hide-sm">{{ row.контрагент }}</td>
+                    <td class="num-cell">{{ '{:,.0f}'.format(row.kz) }}</td>
+                    <td class="num-cell hide-md">{{ '{:,.0f}'.format(row.dz) }}</td>
+                    <td class="num-cell">{{ '{:,.0f}'.format(row.unpaid_sum) }}</td>
+                    <td>
+                        {% if row.has_advance and row.has_repayment %}
+                            <span class="badge bg-info text-dark me-1">Аванс</span>
+                            <span class="badge bg-secondary">Погашение</span>
+                        {% elif row.has_advance %}
+                            <span class="badge bg-info text-dark">Аванс</span>
+                        {% elif row.has_repayment %}
+                            <span class="badge bg-secondary">Погашение</span>
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="num-cell {% if row.diff > 1 or row.diff < -1 %}cell-danger{% endif %}">
+                        {{ '{:,.0f}'.format(row.diff) }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

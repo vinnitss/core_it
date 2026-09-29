@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Согласующие по проектам{% endblock %}
+{% block page_title %}Согласующие по проектам{% endblock %}
+
+{% block header_actions %}
+{% if can_edit %}
+<a href="{{ url_for('approvers.upload') }}" class="btn btn-outline-warning btn-sm">
+    <i class="fas fa-file-excel me-1"></i> Загрузить Excel
+</a>
+<a href="{{ url_for('approvers.new_project') }}" class="btn btn-primary btn-sm">
+    <i class="fas fa-plus me-1"></i> Добавить проект
+</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+
+<!-- Фильтры -->
+<div class="section-card">
+    <form method="get" class="row g-2 align-items-end">
+        <div class="col-md-3">
+            <label class="form-label fw-bold small">Поиск</label>
+            <input type="text" name="search" class="form-control form-control-sm"
+                   value="{{ filters.search or '' }}"
+                   placeholder="Проект или ИСД">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label fw-bold small">ИСД</label>
+            <select name="isd" class="form-select form-select-sm">
+                <option value="">Все</option>
+                {% for i in options.isds %}
+                <option value="{{ i }}" {% if filters.isd == i %}selected{% endif %}>{{ i }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label fw-bold small">Площадка</label>
+            <select name="platform" class="form-select form-select-sm">
+                <option value="">Все</option>
+                {% for p in options.platforms %}
+                <option value="{{ p }}" {% if filters.platform == p %}selected{% endif %}>{{ p }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label fw-bold small">Реестровость</label>
+            <select name="registry_type" class="form-select form-select-sm">
+                <option value="">Все</option>
+                {% for rt in options.registry_types %}
+                <option value="{{ rt }}" {% if filters.registry_type == rt %}selected{% endif %}>{{ rt }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label fw-bold small">Согласующий</label>
+            <select name="approver_id" class="form-select form-select-sm">
+                <option value="">Все</option>
+                {% for a in all_approvers %}
+                <option value="{{ a.id }}" {% if filters.approver_id == a.id %}selected{% endif %}>
+                    {{ a.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-1">
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="fas fa-search"></i>
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Список -->
+<div class="section-card">
+    <div class="mb-2 text-muted small">
+        Всего записей: <strong>{{ projects|length }}</strong>
+    </div>
+
+    {% if projects %}
+    <div class="table-sticky-wrap">
+        <table class="portal-table" data-table data-order-col="0">
+            <thead>
+                <tr>
+                    <th>ИСД</th>
+                    <th>Проект</th>
+                    <th class="hide-md">Площадка</th>
+                    <th class="hide-sm">Реестровость</th>
+                    <th>1 этап согласования</th>
+                    <th>2 этап согласования</th>
+                    {% if can_edit %}<th></th>{% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in projects %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('approvers.detail', project_id=p.id) }}" class="row-link">
+                            {{ p.isd or '—' }}
+                        </a>
+                    </td>
+                    <td><strong>{{ p.project }}</strong></td>
+                    <td class="hide-md small text-muted">{{ p.platform or '—' }}</td>
+                    <td class="hide-sm">
+                        {% if p.registry_type == 'реестровый' %}
+                            <span class="badge bg-primary">реестровый</span>
+                        {% elif p.registry_type == 'безреестровый' %}
+                            <span class="badge bg-secondary">безреестровый</span>
+                        {% else %}
+                            <span class="badge bg-light text-dark">{{ p.registry_type or '—' }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="small">
+                        {% if p.stage1 %}
+                            {% for a in p.stage1 %}
+                                <div>{{ a.name }}{% if a.email %} · <span class="text-muted">{{ a.email }}</span>{% endif %}</div>
+                            {% endfor %}
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="small">
+                        {% if p.stage2 %}
+                            {% for a in p.stage2 %}
+                                <div>{{ a.name }}{% if a.email %} · <span class="text-muted">{{ a.email }}</span>{% endif %}</div>
+                            {% endfor %}
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    {% if can_edit %}
+                    <td>
+                        <form method="post"
+                              action="{{ url_for('approvers.delete', project_id=p.id) }}"
+                              class="d-inline"
+                              onsubmit="return confirm('Удалить запись?')">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info mb-0">
+        <i class="fas fa-info-circle me-2"></i>
+        Справочник пуст.
+        {% if can_edit %}
+        Загрузите Excel или добавьте запись вручную.
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

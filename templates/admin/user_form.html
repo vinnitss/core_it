@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}{% if mode == 'create' %}Новый пользователь{% else %}Редактирование пользователя{% endif %}{% endblock %}
+{% block page_title %}{% if mode == 'create' %}Новый пользователь{% else %}Редактирование: {{ user.email }}{% endif %}{% endblock %}
+
+{% block content %}
+
+{% if error %}
+<div class="alert alert-danger">{{ error }}</div>
+{% endif %}
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="section-card">
+            <form method="post">
+
+                {% if mode == 'create' %}
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">Email</label>
+                    <input type="email" name="email" class="form-control" required
+                           placeholder="user@stng.ru">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">Временный пароль (минимум 8 символов)</label>
+                    <input type="text" name="password" class="form-control" required minlength="8">
+                    <small class="text-muted">Пользователь сменит его при первом входе.</small>
+                </div>
+                {% else %}
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">Email</label>
+                    <input type="text" class="form-control" value="{{ user.email }}" disabled>
+                </div>
+                {% endif %}
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">Роль</label>
+                    <select name="role" class="form-select">
+                        <option value="viewer" {% if user and user.role == 'viewer' %}selected{% endif %}>viewer — просмотр</option>
+                        <option value="manager" {% if user and user.role == 'manager' %}selected{% endif %}>manager — просмотр + импорт</option>
+                        <option value="admin" {% if user and user.role == 'admin' %}selected{% endif %}>admin — полный доступ</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">ЦФО (подразделение)</label>
+                    <input type="text" name="department" class="form-control"
+                           value="{{ user.department or '' if user else '' }}"
+                           placeholder="Департамент информационных технологий">
+                    <small class="text-muted">Оставьте пустым для admin — он видит все данные.</small>
+                </div>
+
+                <div class="form-check mb-3">
+                    <input type="checkbox" name="can_import" class="form-check-input"
+                           id="canImport" {% if user and user.can_import %}checked{% endif %}>
+                    <label class="form-check-label" for="canImport">
+                        Может импортировать данные
+                    </label>
+                </div>
+                <div class="form-check mb-3">
+                    <input type="checkbox" name="can_edit_approvers" class="form-check-input"
+                            id="canEditApprovers" {% if user and user.can_edit_approvers %}checked{% endif %}>
+                    <label class="form-check-label" for="canEditApprovers">
+                        Может редактировать справочник согласующих
+                    </label>
+                </div>
+                {% if mode == 'edit' %}
+                <div class="form-check mb-4">
+                    <input type="checkbox" name="is_active" class="form-check-input"
+                           id="isActive" {% if user.is_active %}checked{% endif %}>
+                    <label class="form-check-label" for="isActive">
+                        Активен (может входить в систему)
+                    </label>
+                </div>
+                {% endif %}
+
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-1"></i>{% if mode == 'create' %}Создать{% else %}Сохранить{% endif %}
+                </button>
+                <a href="{{ url_for('admin.users') }}" class="btn btn-secondary">Отмена</a>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

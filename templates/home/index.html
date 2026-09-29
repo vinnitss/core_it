@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}Главная{% endblock %}
+{% block page_title %}Главная{% endblock %}
+
+{% block content %}
+
+<!-- KPI -->
+<div class="row">
+    <div class="col-md-3">
+        <a href="{{ url_for('dashboard.debts_dashboard') }}" class="kpi-card">
+            <div class="kpi-icon text-danger"><i class="fas fa-file-invoice-dollar"></i></div>
+            <div class="kpi-value text-danger">{{ '{:,.2f}'.format(data.kz_total) }}</div>
+            <div class="kpi-label">Кредиторская задолженность</div>
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a href="{{ url_for('dashboard.debts_dashboard') }}" class="kpi-card">
+            <div class="kpi-icon text-primary"><i class="fas fa-hand-holding-usd"></i></div>
+            <div class="kpi-value text-primary">{{ '{:,.2f}'.format(data.dz_total) }}</div>
+            <div class="kpi-label">Дебиторская задолженность</div>
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a href="{{ url_for('reports.index') }}" class="kpi-card">
+            <div class="kpi-icon text-warning"><i class="fas fa-hourglass-half"></i></div>
+            <div class="kpi-value text-warning">{{ '{:,.2f}'.format(data.unpaid_total) }}</div>
+            <div class="kpi-label">Сумма неоплаченных заявок</div>
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a href="{{ url_for('contracts.index') }}" class="kpi-card">
+            <div class="kpi-icon text-success"><i class="fas fa-file-contract"></i></div>
+            <div class="kpi-value text-success">{{ data.active_contracts }}</div>
+            <div class="kpi-label">Активных договоров</div>
+        </a>
+    </div>
+</div>
+
+<!-- Требует внимания -->
+<div class="section-card">
+    <div class="d-flex align-items-center mb-3">
+        <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+        <h5 class="mb-0">Требует внимания</h5>
+    </div>
+    <div class="row g-3">
+        <div class="col-6 col-md-4 col-lg-2">
+            <a href="{{ url_for('contracts.index') }}"
+               class="attention-card {% if data.expiring_count > 0 %}warning{% else %}secondary attention-zero{% endif %}">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="attention-count text-warning">{{ data.expiring_count }}</div>
+                    <i class="fas fa-clock fa-2x text-warning opacity-50"></i>
+                </div>
+                <div class="attention-label">Договоры с истекающим сроком</div>
+            </a>
+        </div>
+        <div class="col-6 col-md-4 col-lg-2">
+            <a href="{{ url_for('contracts.index', flag='forecast_critical') }}"
+               class="attention-card {% if data.forecast_critical_count > 0 %}danger{% else %}secondary attention-zero{% endif %}">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="attention-count text-danger">{{ data.forecast_critical_count }}</div>
+                    <i class="fas fa-fire fa-2x text-danger opacity-50"></i>
+                </div>
+                <div class="attention-label">Скоро исчерпание лимита</div>
+            </a>
+        </div>
+        <div class="col-6 col-md-4 col-lg-2">
+            <a href="{{ url_for('contracts.index') }}"
+               class="attention-card {% if data.limit_count > 0 %}danger{% else %}secondary attention-zero{% endif %}">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="attention-count text-danger">{{ data.limit_count }}</div>
+                    <i class="fas fa-exclamation-circle fa-2x text-danger opacity-50"></i>
+                </div>
+                <div class="attention-label">Договоры с исчерпанным лимитом</div>
+            </a>
+        </div>
+        <div class="col-6 col-md-4 col-lg-2">
+            <a href="{{ url_for('contracts.index') }}"
+               class="attention-card {% if data.no_end_count > 0 %}info{% else %}secondary attention-zero{% endif %}">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="attention-count text-info">{{ data.no_end_count }}</div>
+                    <i class="fas fa-question-circle fa-2x text-info opacity-50"></i>
+                </div>
+                <div class="attention-label">Договоры без указания срока</div>
+            </a>
+        </div>
+        <div class="col-6 col-md-4 col-lg-2">
+            <a href="{{ url_for('contracts.index') }}"
+               class="attention-card {% if data.diff_count > 0 %}danger{% else %}secondary attention-zero{% endif %}">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="attention-count text-danger">{{ data.diff_count }}</div>
+                    <i class="fas fa-balance-scale fa-2x text-danger opacity-50"></i>
+                </div>
+                <div class="attention-label">Расхождения КЗ и заявок</div>
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Дата актуальности -->
+{% if data.imported_at %}
+<div class="section-card" style="background: #fff3cd; border-left: 4px solid #ffc107;">
+    <i class="fas fa-calendar-check me-2"></i>
+    <strong>Данные задолженности актуальны на:</strong> {{ data.imported_at.strftime('%d.%m.%Y %H:%M') }}
+</div>
+{% else %}
+<div class="section-card" style="background: #f8d7da; border-left: 4px solid #dc3545;">
+    <i class="fas fa-exclamation-circle me-2"></i>
+    Данные задолженности ещё не загружены.
+    <a href="{{ url_for('import.import_page') }}" class="ms-2">Загрузить сейчас</a>
+</div>
+{% endif %}
+
+{% endblock %}

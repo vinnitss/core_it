@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+
+{% block title %}Импорт данных{% endblock %}
+{% block page_title %}Импорт данных{% endblock %}
+
+{% block head_extra %}
+<style>
+    .import-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(26, 38, 52, 0.75);
+        backdrop-filter: blur(3px);
+        z-index: 9999;
+        display: none;
+        align-items: center;
+        justify-content: center;
+    }
+    .import-overlay.active { display: flex; }
+
+    .import-modal {
+        background: #fff;
+        border-radius: 14px;
+        padding: 36px 48px;
+        max-width: 520px;
+        width: 90%;
+        text-align: center;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .import-modal h4 {
+        font-size: 1.15rem;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #1a2634;
+    }
+    .import-modal p {
+        color: #6c757d;
+        font-size: 0.9rem;
+        margin-bottom: 24px;
+    }
+    .import-spinner {
+        width: 60px;
+        height: 60px;
+        margin: 0 auto 20px;
+        border: 5px solid #e9ecef;
+        border-top-color: #0d6efd;
+        border-radius: 50%;
+        animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .import-progress {
+        height: 6px;
+        background: #e9ecef;
+        border-radius: 3px;
+        overflow: hidden;
+        margin-bottom: 16px;
+    }
+    .import-progress-bar {
+        height: 100%;
+        background: linear-gradient(90deg, #0d6efd, #0b5ed7);
+        border-radius: 3px;
+        transition: width 0.4s ease;
+        width: 0%;
+    }
+    .import-timer {
+        font-size: 0.85rem;
+        color: #6c757d;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .import-result-alert {
+        border-radius: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{% if result_messages %}
+<div class="alert alert-success alert-dismissible fade show import-result-alert">
+    <i class="fas fa-check-circle me-2"></i>
+    <strong>Загружено:</strong> {{ result_messages|join(', ') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+{% if result_error %}
+<div class="alert alert-danger alert-dismissible fade show import-result-alert">
+    <i class="fas fa-exclamation-triangle me-2"></i>
+    <strong>Ошибка импорта:</strong> {{ result_error }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="alert alert-info small">
+    <i class="fas fa-info-circle me-1"></i>
+    Файлы можно загружать по отдельности — заполните только те поля, которые нужно обновить.
+    Обязательно хотя бы одно поле.
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="section-card">
+            <form method="post" enctype="multipart/form-data" id="importForm">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">
+                        <i class="fas fa-file-excel text-success me-2"></i>Файл заявок (Excel)
+                    </label>
+                    <input type="file" name="file_app" class="form-control" accept=".xlsx,.xls">
+                    <small class="text-muted">Обновляет таблицу заявок.</small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">
+                        <i class="fas fa-file-excel text-success me-2"></i>Файл реестров (Excel)
+                    </label>
+                    <input type="file" name="file_reg" class="form-control" accept=".xlsx,.xls">
+                    <small class="text-muted">Обновляет таблицу реестров.</small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">
+                        <i class="fas fa-file-excel text-success me-2"></i>Файл договоров (Excel)
+                    </label>
+                    <input type="file" name="file_contracts" class="form-control" accept=".xlsx,.xls">
+                    <small class="text-muted">Перезаписывает договоры и запускает привязку заявок.</small>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-bold">
+                        <i class="fas fa-file-invoice-dollar text-danger me-2"></i>Файл задолженности (Excel)
+                    </label>
+                    <input type="file" name="file_debts" class="form-control" accept=".xlsx,.xls">
+                    <small class="text-muted">
+                        Полностью обновляет таблицу задолженности. Если файл не выбран — данные остаются без изменений.
+                    </small>
+                </div>
+
+                <button type="submit" class="btn btn-primary" id="importBtn">
+                    <i class="fas fa-cloud-upload-alt me-1"></i> Загрузить и обработать
+                </button>
+            </form>
+        </div>
+
+        <div class="section-card">
+            <h5><i class="fas fa-info-circle me-2"></i>Как это работает</h5>
+            <ul class="small mb-0 text-muted">
+                <li>Файлы загружаются на сервер и обрабатываются последовательно.</li>
+                <li>Большие файлы могут обрабатываться несколько минут — не закрывайте окно.</li>
+                <li>Заявки и реестры <strong>обновляются</strong>, задолженность <strong>перезаписывается</strong> полностью.</li>
+                <li>После загрузки договоров автоматически пересчитываются связи заявок с договорами.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- Оверлей -->
+<div class="import-overlay" id="importOverlay">
+    <div class="import-modal">
+        <div class="import-spinner"></div>
+        <h4>Идёт обработка данных</h4>
+        <p>Пожалуйста, не закрывайте окно и не обновляйте страницу.<br>Это может занять несколько минут.</p>
+        <div class="import-progress">
+            <div class="import-progress-bar" id="progressBar"></div>
+        </div>
+        <div class="import-timer">
+            <i class="far fa-clock me-1"></i>Прошло: <span id="elapsed">0</span> сек
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const form = document.getElementById('importForm');
+    const overlay = document.getElementById('importOverlay');
+    const progressBar = document.getElementById('progressBar');
+    const elapsedSpan = document.getElementById('elapsed');
+
+    if (!form) return;
+
+    let timer = null;
+    let progressTimer = null;
+
+    function showOverlay() {
+        overlay.classList.add('active');
+        progressBar.style.width = '0%';
+        elapsedSpan.textContent = '0';
+
+        let seconds = 0;
+        // Секундомер
+        timer = setInterval(() => {
+            seconds++;
+            elapsedSpan.textContent = seconds;
+        }, 1000);
+
+        // Прогресс-бар: до 90% за 30 сек, потом стоит
+        let progress = 0;
+        progressTimer = setInterval(() => {
+            if (progress < 90) {
+                progress += (90 - progress) * 0.05 + 0.3;
+                if (progress > 90) progress = 90;
+                progressBar.style.width = progress + '%';
+            }
+        }, 300);
+    }
+
+    function hideOverlay() {
+        overlay.classList.remove('active');
+        if (timer) { clearInterval(timer); timer = null; }
+        if (progressTimer) { clearInterval(progressTimer); progressTimer = null; }
+        progressBar.style.width = '100%';
+    }
+
+    function showMessage(success, text) {
+        // Убираем старые сообщения
+        document.querySelectorAll('.import-result-alert').forEach(el => el.remove());
+
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-' + (success ? 'success' : 'danger') +
+                            ' alert-dismissible fade show import-result-alert';
+        alertDiv.innerHTML = `
+            <i class="fas ${success ? 'fa-check-circle' : 'fa-exclamation-triangle'} me-2"></i>
+            <strong>${success ? 'Загружено:' : 'Ошибка импорта:'}</strong> ${text}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        const container = document.querySelector('.portal-content');
+        container.insertBefore(alertDiv, container.firstChild);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        // Проверяем, что есть хотя бы один файл
+        const fileInputs = form.querySelectorAll('input[type="file"]');
+        const hasAny = Array.from(fileInputs).some(inp => inp.files.length > 0);
+        if (!hasAny) {
+            showMessage(false, 'Загрузите хотя бы один файл');
+            return;
+        }
+
+        showOverlay();
+
+        try {
+            const formData = new FormData(form);
+            const response = await fetch(form.action || window.location.href, {
+                method: 'POST',
+                body: formData,
+                headers: {'X-Requested-With': 'XMLHttpRequest'},
+            });
+
+            const data = await response.json();
+
+            hideOverlay();
+
+            if (data.success) {
+                showMessage(true, data.message || 'данные загружены');
+                form.reset();
+            } else {
+                showMessage(false, data.error || 'неизвестная ошибка');
+            }
+        } catch (err) {
+            hideOverlay();
+            showMessage(false, 'Ошибка сети: ' + err.message);
+        }
+    });
+});
+</script>
+{% endblock %}

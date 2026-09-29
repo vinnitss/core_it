@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+
+{% block title %}Операционная эффективность{% endblock %}
+{% block page_title %}Операционная эффективность{% endblock %}
+
+{% block content %}
+
+<!-- Фильтры: только проект и контрагент -->
+<div class="section-card">
+    <form method="get" class="row g-2 align-items-end">
+        <div class="col-md-3">
+            <label class="form-label fw-bold small">Проект</label>
+            <select name="проект" class="form-select form-select-sm">
+                <option value="">Все проекты</option>
+                {% for p in options.projects %}
+                <option value="{{ p }}" {% if filters.проект == p %}selected{% endif %}>{{ p }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label fw-bold small">Контрагент</label>
+            <input type="text" name="контрагент" class="form-control form-control-sm"
+                   placeholder="Часть названия" value="{{ filters.контрагент }}">
+        </div>
+        <div class="col-md-3">
+            <input type="hidden" name="period" value="{{ filters.period }}">
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="fas fa-filter me-1"></i>Применить
+            </button>
+            <a href="{{ url_for('dashboard.operations') }}" class="btn btn-secondary btn-sm">
+                <i class="fas fa-undo me-1"></i>Сбросить
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- KPI (состояние на сейчас) -->
+<div class="row">
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <div class="kpi-value text-primary">{{ data.kpi.in_work_count }}</div>
+            <div class="kpi-label">Заявок в работе</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <div class="kpi-value">{{ '{:,.0f}'.format(data.kpi.in_work_sum) }}</div>
+            <div class="kpi-label">Сумма в работе</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <div class="kpi-value text-danger">{{ data.kpi.overdue_count }}</div>
+            <div class="kpi-label">Просрочено (&gt;30 дней)</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <div class="kpi-value text-success">{{ data.kpi.avg_days }}</div>
+            <div class="kpi-label">Средний возраст заявки, дней</div>
+        </div>
+    </div>
+</div>
+
+{% if data.kpi.top_responsible %}
+<div class="alert alert-info">
+    <i class="fas fa-user-friends me-2"></i>
+    <strong>Самый загруженный ответственный:</strong>
+    {{ data.kpi.top_responsible.ответственный }}
+    — {{ data.kpi.top_responsible.cnt }} заявок в работе
+</div>
+{% endif %}
+
+<!-- График динамики поступления — с переключателем периода -->
+<div class="section-card">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <h5 class="mb-0">
+            <i class="fas fa-chart-bar me-2"></i>Динамика поступления заявок
+        </h5>
+        <div class="btn-group btn-group-sm" role="group">
+            <a href="?period=month&проект={{ filters.проект }}&контрагент={{ filters.контрагент }}"
+               class="btn {% if filters.period == 'month' %}btn-primary{% else %}btn-outline-primary{% endif %}">Месяц</a>
+            <a href="?period=quarter&проект={{ filters.проект }}&контрагент={{ filters.контрагент }}"
+               class="btn {% if filters.period == 'quarter' %}btn-primary{% else %}btn-outline-primary{% endif %}">Квартал</a>
+            <a href="?period=year&проект={{ filters.проект }}&контрагент={{ filters.контрагент }}"
+               class="btn {% if filters.period == 'year' %}btn-primary{% else %}btn-outline-primary{% endif %}">Год</a>
+            <a href="?period=all&проект={{ filters.проект }}&контрагент={{ filters.контрагент }}"
+               class="btn {% if filters.period == 'all' %}btn-primary{% else %}btn-outline-primary{% endif %}">Всё</a>
+        </div>
+    </div>
+    <canvas id="opsChart" height="80"></canvas>
+</div>
+
+<!-- Воронка статусов -->
+<div class="section-card">
+    <h5><i class="fas fa-filter me-2"></i>Заявки в работе по статусам</h5>
+    <canvas id="funnelChart" height="100"></canvas>
+</div>
+
+<!-- Зависшие заявки -->
+<div class="section-card">
+    <h5><i class="fas fa-hourglass-half text-danger me-2"></i>Зависшие заявки (топ-10)</h5>
+    {% if data.stuck %}
+    <table class="table table-sm table-striped mb-0">
+        <thead>
+            <tr>
+                <th>№ заявки</th>
+                <th>Дата</th>
+                <th>Контрагент</th>
+                <th>Сумма</th>
+                <th>Статус</th>
+                <th>Ответственный</th>
+                <th>Дней в статусе</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in data.stuck %}
+            <tr>
+                <td>{{ row.номер_заявки }}</td>
+                <td>{{ row.дата }}</td>
+                <td>{{ row.контрагент }}</td>
+                <td>{{ '{:,.0f}'.format(row.сумма_заявки) }}</td>
+                <td>{{ row.статус_согласования }}</td>
+                <td>{{ row.ответственный }}</td>
+                <td class="{% if row.days_in_status and row.days_in_status > 30 %}text-danger fw-bold{% endif %}">
+                    {{ row.days_in_status or '—' }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted mb-0">Зависших заявок нет.</p>
+    {% endif %}
+</div>
+
+<!-- Загрузка по ответственным -->
+<div class="section-card">
+    <h5><i class="fas fa-users me-2"></i>Загрузка по ответственным</h5>
+    {% if data.workload %}
+    <table class="table table-sm table-striped mb-0">
+        <thead>
+            <tr>
+                <th>Ответственный</th>
+                <th>Заявок в работе</th>
+                <th>Сумма</th>
+                <th>Средний возраст, дней</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in data.workload %}
+            <tr>
+                <td>{{ row.ответственный }}</td>
+                <td>{{ row.cnt }}</td>
+                <td>{{ '{:,.0f}'.format(row.total) }}</td>
+                <td>{{ row.avg_age_days or '—' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted mb-0">Нет данных.</p>
+    {% endif %}
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// Динамика
+const monthly = {{ data.monthly|tojson }};
+new Chart(document.getElementById('opsChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+        labels: monthly.map(m => m.month),
+        datasets: [
+            { label: 'Заявок', data: monthly.map(m => m.cnt),
+              backgroundColor: 'rgba(54, 162, 235, 0.6)', yAxisID: 'y' },
+            { label: 'Сумма', data: monthly.map(m => m.total),
+              type: 'line', borderColor: 'rgba(255, 99, 132, 1)',
+              backgroundColor: 'rgba(255, 99, 132, 0.2)', yAxisID: 'y1', tension: 0.3 }
+        ]
+    },
+    options: {
+        responsive: true,
+        interaction: { mode: 'index', intersect: false },
+        scales: {
+            y: { position: 'left', title: { display: true, text: 'Кол-во' } },
+            y1: { position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Сумма' } }
+        }
+    }
+});
+
+// Воронка статусов
+const funnel = {{ data.funnel|tojson }};
+new Chart(document.getElementById('funnelChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+        labels: funnel.map(f => f.status),
+        datasets: [{
+            label: 'Количество заявок',
+            data: funnel.map(f => f.cnt),
+            backgroundColor: 'rgba(255, 159, 64, 0.7)',
+            borderColor: 'rgba(255, 159, 64, 1)',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        plugins: { legend: { display: false } }
+    }
+});
+</script>
+{% endblock %}

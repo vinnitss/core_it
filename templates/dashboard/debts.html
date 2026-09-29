@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Дашборд задолженности{% endblock %}
+{% block page_title %}Дашборд задолженности{% endblock %}
+
+{% block content %}
+
+{% if data.imported_at %}
+<div class="section-card" style="background: #fff3cd; border-left: 4px solid #ffc107;">
+    <i class="fas fa-calendar-check me-2"></i>
+    <strong>Данные актуальны на:</strong> {{ data.imported_at.strftime('%d.%m.%Y %H:%M') }}
+</div>
+{% endif %}
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="kpi-card">
+            <div class="kpi-value text-danger">{{ '{:,.2f}'.format(data.kz_total) }}</div>
+            <div class="kpi-label">Кредиторская задолженность</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="kpi-card">
+            <div class="kpi-value text-primary">{{ '{:,.2f}'.format(data.dz_total) }}</div>
+            <div class="kpi-label">Дебиторская задолженность</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="kpi-card">
+            <div class="kpi-value text-warning">{{ '{:,.2f}'.format(data.unpaid_applications_total) }}</div>
+            <div class="kpi-label">Сумма неоплаченных заявок</div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Справка{% endblock %}
+{% block page_title %}Справка{% endblock %}
+
+{% block content %}
+
+<div class="row">
+    <!-- Навигация -->
+    <div class="col-md-3 col-lg-2">
+        <div class="section-card help-nav-card">
+            <h6 class="mb-3 text-muted text-uppercase small">Разделы справки</h6>
+            <ul class="nav flex-column help-nav">
+                {% for slug, meta in docs.items() %}
+                    {% if not meta.admin_only or (current_user.is_authenticated and current_user.is_admin) %}
+                    <li class="nav-item">
+                        <a href="{{ url_for('help.index', slug=slug) }}"
+                           class="nav-link {% if slug == current_slug %}active{% endif %}">
+                            <i class="fas {{ meta.icon }} me-2"></i>{{ meta.title }}
+                        </a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Содержимое -->
+    <div class="col-md-9 col-lg-10">
+        <div class="section-card help-content">
+            {{ content|safe }}
+        </div>
+    </div>
+</div>
+
+{% endblock %}

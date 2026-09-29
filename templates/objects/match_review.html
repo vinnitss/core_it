@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block title %}Проверка матчей объектов{% endblock %}
+{% block page_title %}Проверка матчей заявок к объектам{% endblock %}
+
+{% block header_actions %}
+{% if current_user.is_admin %}
+<form method="post" action="{{ url_for('objects.match_rebuild') }}" class="d-inline">
+    <button type="submit" class="btn btn-warning btn-sm"
+            onclick="return confirm('Пересчитать все матчи? Существующие результаты будут заменены.')">
+        <i class="fas fa-sync me-1"></i> Пересчитать матчи
+    </button>
+</form>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+
+<!-- Статистика -->
+<div class="row mb-3">
+    {% for s in stats %}
+    <div class="col-md-3">
+        <div class="kpi-card">
+            {% if s.object_match_confidence == 'HIGH' %}
+                <div class="kpi-value text-success">{{ s.cnt }}</div>
+            {% elif s.object_match_confidence == 'MEDIUM' %}
+                <div class="kpi-value text-primary">{{ s.cnt }}</div>
+            {% elif s.object_match_confidence == 'AMBIGUOUS' %}
+                <div class="kpi-value text-warning">{{ s.cnt }}</div>
+            {% elif s.object_match_confidence == 'CONFIRMED' %}
+                <div class="kpi-value text-info">{{ s.cnt }}</div>
+            {% elif s.object_match_confidence == 'REJECTED' %}
+                <div class="kpi-value text-muted">{{ s.cnt }}</div>
+            {% else %}
+                <div class="kpi-value">{{ s.cnt }}</div>
+            {% endif %}
+            <div class="kpi-label">
+                {{ s.object_match_confidence }}
+                {% if s.assigned and s.assigned != s.cnt %}
+                    <br><small>присвоено: {{ s.assigned }}</small>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Фильтры -->
+<div class="section-card">
+    <form method="get" class="row g-2 align-items-end">
+        <div class="col-md-2">
+            <label class="form-label fw-bold small">Уверенность</label>
+            <select name="confidence" class="form-select form-select-sm">
+                <option value="">Все</option>
+                <option value="HIGH" {% if filters.confidence == 'HIGH' %}selected{% endif %}>HIGH</option>
+                <option value="MEDIUM" {% if filters.confidence == 'MEDIUM' %}selected{% endif %}>MEDIUM</option>
+                <option value="AMBIGUOUS" {% if filters.confidence == 'AMBIGUOUS' %}selected{% endif %}>AMBIGUOUS</option>
+                <option value="CONFIRMED" {% if filters.confidence == 'CONFIRMED' %}selected{% endif %}>CONFIRMED</option>
+                <option value="REJECTED" {% if filters.confidence == 'REJECTED' %}selected{% endif %}>REJECTED</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label fw-bold small">Проект</label>
+            <select name="project" class="form-select form-select-sm">
+                <option value="">Все проекты</option>
+                {% for p in options.projects %}
+                <option value="{{ p }}" {% if filters.project == p %}selected{% endif %}>{{ p }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label fw-bold small">Поиск</label>
+            <input type="text" name="search" class="form-control form-control-sm"
+                   value="{{ filters.search or '' }}" placeholder="Номер или текст">
+        </div>
+        <div class="col-md-2">
+            <div class="form-check">
+                <input type="checkbox" name="only_unconfirmed" value="1" class="form-check-input"
+                       id="onlyUnconf" {% if filters.only_unconfirmed %}checked{% endif %}>
+                <label class="form-check-label small" for="onlyUnconf">Только без объекта</label>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="fas fa-filter me-1"></i>Применить
+            </button>
+            <a href="{{ url_for('objects.match_review') }}" class="btn btn-secondary btn-sm">
+                <i class="fas fa-undo me-1"></i>Сброс
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Список -->
+<div class="section-card">
+    <div class="mb-2 text-muted small">
+        Всего заявок с матчами: <strong>{{ data.total }}</strong>,
+        страница {{ data.page }} из {{ data.pages or 1 }}
+    </div>
+
+    {% if data.items %}
+    <div class="table-responsive-wrapper">
+        <table class="portal-table">
+            <thead>
+                <tr>
+                    <th>№ заявки</th>
+                    <th class="hide-sm">Дата</th>
+                    <th class="num-cell">Сумма</th>
+                    <th>Проект</th>
+                    <th>Объект</th>
+                    <th>Уверенность</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in data.rows %}
+                <tr>
+                    <td><strong>{{ item.номер_заявки }}</strong></td>
+                    <td class="hide-sm small">{{ item.дата }}</td>
+                    <td class="num-cell">{{ '{:,.0f}'.format(item.сумма_заявки) if item.сумма_заявки else '—' }}</td>
+                    <td class="small">{{ item.проект or '—' }}</td>
+                    <td>
+                        {% if item.object_name %}
+                            <strong>{{ item.object_name }}</strong>
+                        {% else %}
+                            <span class="text-muted small">не присвоен</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% set conf = item.object_match_confidence %}
+                        {% if conf == 'HIGH' %}<span class="badge bg-success">HIGH</span>
+                        {% elif conf == 'MEDIUM' %}<span class="badge bg-primary">MEDIUM</span>
+                        {% elif conf == 'AMBIGUOUS' %}<span class="badge bg-warning text-dark">AMBIGUOUS</span>
+                        {% elif conf == 'CONFIRMED' %}<span class="badge bg-info">CONFIRMED</span>
+                        {% elif conf == 'REJECTED' %}<span class="badge bg-secondary">REJECTED</span>
+                        {% else %}<span class="badge bg-light text-dark">{{ conf }}</span>{% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ url_for('objects.match_detail', num=item.номер_заявки, date=item.дата) }}"
+                           class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Пагинация -->
+    {% if data.pages > 1 %}
+    <nav class="mt-3">
+        <ul class="pagination pagination-sm">
+            {% if data.page > 1 %}
+            <li class="page-item">
+                <a class="page-link"
+                   href="?page={{ data.page - 1 }}{% if filters.confidence %}&confidence={{ filters.confidence }}{% endif %}{% if filters.project %}&project={{ filters.project }}{% endif %}{% if filters.search %}&search={{ filters.search }}{% endif %}{% if filters.only_unconfirmed %}&only_unconfirmed=1{% endif %}">
+                    ← Назад
+                </a>
+            </li>
+            {% endif %}
+            <li class="page-item disabled">
+                <span class="page-link">{{ data.page }} / {{ data.pages }}</span>
+            </li>
+            {% if data.page < data.pages %}
+            <li class="page-item">
+                <a class="page-link"
+                   href="?page={{ data.page + 1 }}{% if filters.confidence %}&confidence={{ filters.confidence }}{% endif %}{% if filters.project %}&project={{ filters.project }}{% endif %}{% if filters.search %}&search={{ filters.search }}{% endif %}{% if filters.only_unconfirmed %}&only_unconfirmed=1{% endif %}">
+                    Вперёд →
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+
+    {% else %}
+    <p class="text-muted mb-0">Нет заявок с матчами. Нажмите «Пересчитать матчи» в шапке.</p>
+    {% endif %}
+</div>
+
+{% endblock %}

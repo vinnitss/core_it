@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Мои отчёты{% endblock %}
+{% block page_title %}Сохранённые отчёты{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('report_builder.index') }}" class="btn btn-primary btn-sm">
+    <i class="fas fa-plus me-1"></i> Новый отчёт
+</a>
+{% endblock %}
+
+{% block content %}
+
+<div class="section-card">
+    <div class="mb-3">
+        <a href="{{ url_for('report_builder.list_page') }}"
+           class="btn btn-sm {% if not mine_only %}btn-primary{% else %}btn-outline-primary{% endif %}">
+            Все доступные
+        </a>
+        <a href="{{ url_for('report_builder.list_page', mine=1) }}"
+           class="btn btn-sm {% if mine_only %}btn-primary{% else %}btn-outline-primary{% endif %}">
+            Только мои
+        </a>
+    </div>
+
+    {% if reports %}
+    <div class="table-responsive-wrapper">
+        <table class="portal-table" data-table data-order-col="4" data-order-dir="desc">
+            <thead>
+                <tr>
+                    <th>Название</th>
+                    <th class="hide-sm">Описание</th>
+                    <th>Тип</th>
+                    <th class="hide-md">Метки</th>
+                    <th class="hide-sm">Обновлён</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in reports %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('report_builder.view_report', report_id=r.id) }}" class="row-link">
+                            {{ r.name }}
+                        </a>
+                    </td>
+                    <td class="hide-sm small text-muted">{{ r.description or '—' }}</td>
+                    <td>
+                        {% if r.report_type == 'kpi' %}
+                            <span class="badge bg-primary">KPI</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Таблица</span>
+                        {% endif %}
+                    </td>
+                    <td class="hide-md small">
+                        {% if r.is_system %}<span class="badge bg-dark">системный</span>{% endif %}
+                        {% if r.is_public %}<span class="badge bg-success">публичный</span>{% endif %}
+                    </td>
+                    <td class="hide-sm small text-muted">
+                        {{ r.updated_at.strftime('%d.%m.%Y %H:%M') if r.updated_at else '—' }}
+                    </td>
+                    <td>
+                        {% if r.owner_id == current_user.id or current_user.is_admin %}
+                        <a href="{{ url_for('report_builder.index', id=r.id) }}"
+                           class="btn btn-sm btn-outline-primary" title="Редактировать">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        {% endif %}
+                        <a href="{{ url_for('report_builder.export_report', report_id=r.id) }}"
+                           class="btn btn-sm btn-outline-success" title="Экспорт">
+                            <i class="fas fa-file-excel"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-muted">Отчётов пока нет. Создайте первый через конструктор.</p>
+    {% endif %}
+</div>
+
+{% endblock %}

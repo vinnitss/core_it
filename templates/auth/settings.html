@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Настройки{% endblock %}
+{% block page_title %}Настройки{% endblock %}
+
+{% block content %}
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="section-card">
+            <h5><i class="fas fa-cog me-2"></i>Профиль</h5>
+
+            <table class="table table-sm mb-4">
+                <tbody>
+                    <tr>
+                        <td class="text-muted" style="width: 180px;">Email</td>
+                        <td>{{ current_user.email }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Роль</td>
+                        <td>{{ current_user.role }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Подразделение</td>
+                        <td>{{ current_user.department or '—' }}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h5 class="mt-4"><i class="fas fa-home me-2"></i>Стартовая страница</h5>
+            <p class="text-muted small">
+                Выберите, куда вы хотите попадать сразу после входа в портал.
+            </p>
+
+            <form method="post">
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="radio" name="start_page"
+                           id="spHome" value="home"
+                           {% if current_user.start_page == 'home' %}checked{% endif %}>
+                    <label class="form-check-label" for="spHome">
+                        <strong>Главная</strong> — KPI и блок «Требует внимания»
+                    </label>
+                </div>
+                <div class="form-check mb-4">
+                    <input class="form-check-input" type="radio" name="start_page"
+                           id="spMy" value="my_dashboard"
+                           {% if current_user.start_page == 'my_dashboard' %}checked{% endif %}>
+                    <label class="form-check-label" for="spMy">
+                        <strong>Мой дашборд</strong> — персональный набор виджетов
+                    </label>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-1"></i>Сохранить
+                </button>
+                <a href="{{ url_for('auth.change_password') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-key me-1"></i>Сменить пароль
+                </a>
+            </form>
+            {% if hidden_sections %}
+            <div class="section-card mt-4">
+                <h5><i class="fas fa-eye me-2"></i>Скрытые разделы</h5>
+                <p class="text-muted small">Вы скрыли эти разделы. Верните их, если они снова нужны.</p>
+                <ul class="list-group">
+                    {% for item in hidden_sections %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>
+                            <i class="fas {{ item.icon }} me-2 text-muted"></i>{{ item.name }}
+                        </span>
+                        <button type="button" class="btn btn-sm btn-outline-primary"
+                                onclick="unhideSection('{{ item.key }}')">
+                            <i class="fas fa-undo me-1"></i>Вернуть
+                        </button>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <script>
+            async function unhideSection(key) {
+                await fetch('{{ url_for("sidebar.api_unhide") }}', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({key: key})
+                });
+                location.reload();
+            }
+            </script>
+            {% endif %}            
+        </div>
+    </div>
+</div>
+
+{% endblock %}

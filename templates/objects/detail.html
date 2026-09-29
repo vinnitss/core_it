@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}{{ obj.name }}{% endblock %}
+{% block page_title %}{{ obj.name }}{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('objects.index') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="fas fa-arrow-left me-1"></i> К списку
+</a>
+{% endblock %}
+
+{% block content %}
+
+<div class="section-card">
+    <div class="row">
+        <div class="col-md-8">
+            <table class="table table-sm mb-0">
+                <tbody>
+                    <tr>
+                        <td class="text-muted" style="width:180px;">Код объекта</td>
+                        <td><strong>{{ obj.code or '—' }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Полное название</td>
+                        <td>{{ obj.name }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Проект</td>
+                        <td>{{ obj.project or '—' }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Месторождение</td>
+                        <td>{{ obj.field or '—' }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Тип</td>
+                        <td>
+                            {% if obj.type == 'site' %}<span class="badge bg-primary">Площадка</span>
+                            {% elif obj.type == 'res' %}<span class="badge bg-info text-dark">ВЗиС/ВЖГ</span>
+                            {% elif obj.type == 'office' %}<span class="badge bg-secondary">Офис</span>
+                            {% else %}{{ obj.type or '—' }}{% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Статус</td>
+                        <td>
+                            {% if obj.status == 'active' %}<span class="badge bg-success">Активен</span>
+                            {% elif obj.status == 'delayed' %}<span class="badge bg-warning text-dark">Задержан</span>
+                            {% elif obj.status == 'stopped' %}<span class="badge bg-danger">Остановлен</span>
+                            {% else %}{{ obj.status or '—' }}{% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Ответственный</td>
+                        <td>{{ obj.ответственный or '—' }}</td>
+                    </tr>
+                    {% if obj.lat and obj.lon %}
+                    <tr>
+                        <td class="text-muted">Координаты</td>
+                        <td>{{ obj.lat }}, {{ obj.lon }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if obj.info %}
+                    <tr>
+                        <td class="text-muted">Описание</td>
+                        <td>{{ obj.info }}</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+        {% if obj.lat and obj.lon %}
+        <div class="col-md-4">
+            <div id="mini-map" style="height: 250px; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.1);"></div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="section-card">
+    <div class="alert alert-info mb-0">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>В разработке:</strong> скоро здесь появятся заявки, договоры, КЗ/ДЗ
+        и аналитика по этому объекту. Связь объектов с заявками идёт через код,
+        который будет указан в назначении платежа.
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{% if obj.lat and obj.lon %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script>
+const m = L.map('mini-map').setView([{{ obj.lat }}, {{ obj.lon }}], 12);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap'
+}).addTo(m);
+L.marker([{{ obj.lat }}, {{ obj.lon }}]).addTo(m)
+    .bindPopup("{{ obj.name }}").openPopup();
+</script>
+{% endif %}
+{% endblock %}

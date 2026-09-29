@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Корпоративный портал{% endblock %} — АО «Стройтранснефтегаз»</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='favicon.png') }}">
+
+    <!-- CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.dataTables.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+
+    {% block head_extra %}{% endblock %}
+</head>
+<body>
+<div class="portal-layout">
+
+    <!-- ============ SIDEBAR ============ -->
+    <aside class="portal-sidebar">
+        <div class="sidebar-brand">
+            <img src="{{ url_for('static', filename='logo.png') }}"
+                 alt="СТНГ" class="sidebar-logo logo-expanded"
+                 onerror="this.style.display='none'; document.getElementById('logoFallback').style.display='flex';">
+            <img src="{{ url_for('static', filename='logo_s.png') }}"
+                 alt="СТНГ" class="sidebar-logo logo-collapsed"
+                 onerror="this.style.display='none'; document.getElementById('logoFallback').style.display='flex';">
+            <div id="logoFallback" class="sidebar-logo-fallback" style="display:none;">СТНГ</div>
+            <div class="sidebar-brand-text">
+                <strong>СТНГ</strong>
+                <small>Портал заявок</small>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <!-- ОСНОВНОЕ МЕНЮ -->
+            {% for item in sidebar.main %}
+                <a href="{{ url_for(item.endpoint) }}"
+                   class="sidebar-link {% if request.endpoint == item.endpoint %}active{% endif %}
+                          {% if item.pinned %}pinned{% endif %}">
+                    <i class="fas {{ item.icon }}"></i>
+                    <span>{{ item.name }}</span>
+                    {% if item.pinned %}
+                        <span class="link-actions">
+                            <button type="button" class="link-action icon-unpin"
+                                    title="Открепить"
+                                    onclick="event.preventDefault(); unpinSection('{{ item.key }}');">
+                                <i class="fas fa-star"></i>
+                            </button>
+                        </span>
+                    {% endif %}
+                </a>
+            {% endfor %}
+
+            <!-- ВСЕ РАЗДЕЛЫ -->
+            {% if sidebar.hidden %}
+            <div class="sidebar-section-title" onclick="toggleSection(this)">
+                <span><i class="fas fa-chevron-down section-toggle-icon me-1"></i> Все разделы</span>
+                <span class="text-muted small">{{ sidebar.hidden|length }}</span>
+            </div>
+            <div class="sidebar-section-body">
+                {% for item in sidebar.hidden %}
+                    <a href="{{ url_for(item.endpoint) }}"
+                       class="sidebar-link {% if request.endpoint == item.endpoint %}active{% endif %}">
+                        <i class="fas {{ item.icon }}"></i>
+                        <span>{{ item.name }}</span>
+                        <span class="link-actions">
+                            <button type="button" class="link-action"
+                                    title="Закрепить в основном меню"
+                                    onclick="event.preventDefault(); pinSection('{{ item.key }}');">
+                                <i class="fas fa-star"></i>
+                            </button>
+                            <button type="button" class="link-action"
+                                    title="Скрыть"
+                                    onclick="event.preventDefault(); hideSection('{{ item.key }}');">
+                                <i class="fas fa-eye-slash"></i>
+                            </button>
+                        </span>
+                    </a>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- АДМИНИСТРИРОВАНИЕ -->
+            {% if sidebar.admin %}
+                <div class="nav-section">Администрирование</div>
+                {% for item in sidebar.admin %}
+                    <a href="{{ url_for(item.endpoint) }}"
+                       class="sidebar-link {% if request.endpoint == item.endpoint %}active{% endif %}">
+                        <i class="fas {{ item.icon }}"></i>
+                        <span>{{ item.name }}</span>
+                    </a>
+                {% endfor %}
+            {% endif %}
+
+            <!-- СЛУЖЕБНОЕ -->
+            {% if sidebar.service %}
+                <div class="nav-section">Сервис</div>
+                {% for item in sidebar.service %}
+                    <a href="{{ url_for(item.endpoint) }}"
+                       class="sidebar-link {% if request.endpoint == item.endpoint %}active{% endif %}">
+                        <i class="fas {{ item.icon }}"></i>
+                        <span>{{ item.name }}</span>
+                    </a>
+                {% endfor %}
+            {% endif %}
+        </nav>
+
+        <div class="sidebar-footer">
+            <small>© АО «СТНГ» {{ current_year }}</small>
+        </div>
+    </aside>
+
+    <!-- ============ MAIN AREA ============ -->
+    <div class="portal-main">
+        <header class="portal-header">
+            <div class="header-left">
+                <button class="btn-sidebar-toggle" type="button" aria-label="Меню">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="header-page-title">{% block page_title %}{% endblock %}</h1>
+            </div>
+            <div class="header-right">
+                <span class="header-date">
+                    <i class="far fa-calendar-alt me-1"></i>
+                    {{ current_date }}
+                </span>
+                {% if current_user.is_authenticated %}
+                <span class="header-user">
+                    <i class="fas fa-user-circle me-1"></i>
+                    {{ current_user.email }}
+                    {% if current_user.department %}
+                        <small class="text-muted ms-1">({{ current_user.department }})</small>
+                    {% endif %}
+                </span>
+                <a href="{{ url_for('auth.logout') }}" class="btn btn-sm btn-outline-secondary" title="Выйти">
+                    <i class="fas fa-sign-out-alt"></i>
+                </a>
+                {% endif %}
+
+                {% block header_actions %}{% endblock %}
+            </div>
+        </header>
+
+        <main class="portal-content">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</div>
+
+<!-- JS -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='js/portal-tables.js') }}"></script>
+
+<script>
+    // Сворачивание sidebar
+    document.querySelector('.btn-sidebar-toggle')?.addEventListener('click', function () {
+        document.body.classList.toggle('sidebar-collapsed');
+    });
+
+    // Разворачивание/сворачивание блока «Все разделы»
+    function toggleSection(el) {
+        const body = el.nextElementSibling;
+        const icon = el.querySelector('.section-toggle-icon');
+        if (!body) return;
+        if (body.style.display === 'none') {
+            body.style.display = '';
+            icon.classList.remove('collapsed');
+            localStorage.setItem('sidebar_section_open', '1');
+        } else {
+            body.style.display = 'none';
+            icon.classList.add('collapsed');
+            localStorage.setItem('sidebar_section_open', '0');
+        }
+    }
+
+    // Восстанавливаем состояние блока «Все разделы»
+    document.addEventListener('DOMContentLoaded', function() {
+        const saved = localStorage.getItem('sidebar_section_open');
+        const title = document.querySelector('.sidebar-section-title');
+        if (title && saved === '1') {
+            const body = title.nextElementSibling;
+            const icon = title.querySelector('.section-toggle-icon');
+            if (body) body.style.display = '';
+            if (icon) icon.classList.remove('collapsed');
+        } else if (title) {
+            const body = title.nextElementSibling;
+            const icon = title.querySelector('.section-toggle-icon');
+            if (body) body.style.display = 'none';
+            if (icon) icon.classList.add('collapsed');
+        }
+    });
+
+    // ============ SIDEBAR API ============
+    async function pinSection(key) {
+        await fetch('{{ url_for("sidebar.api_pin") }}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({key: key})
+        });
+        location.reload();
+    }
+
+    async function unpinSection(key) {
+        await fetch('{{ url_for("sidebar.api_unpin") }}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({key: key})
+        });
+        location.reload();
+    }
+
+    async function hideSection(key) {
+        if (!confirm('Скрыть раздел? Его можно будет вернуть через Настройки.')) return;
+        await fetch('{{ url_for("sidebar.api_hide") }}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({key: key})
+        });
+        location.reload();
+    }
+</script>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

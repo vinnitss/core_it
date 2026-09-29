@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+
+{% block title %}Портфель договоров{% endblock %}
+{% block page_title %}Портфель договоров{% endblock %}
+
+{% block content %}
+
+<!-- KPI -->
+<div class="row">
+    <div class="col-md-3">
+        <a href="#dead" class="kpi-card">
+            <div class="kpi-value text-secondary">{{ data.kpi.dead_count }}</div>
+            <div class="kpi-label">Мёртвые (нет заявок >6 мес.)</div>
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a href="#growing" class="kpi-card">
+            <div class="kpi-value text-warning">{{ data.kpi.growing_count }}</div>
+            <div class="kpi-label">Растущие траты</div>
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a href="#expiring" class="kpi-card">
+            <div class="kpi-value text-danger">{{ data.kpi.expiring_count }}</div>
+            <div class="kpi-label">Истекающие (60 дней)</div>
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a href="#mismatched" class="kpi-card">
+            <div class="kpi-value text-primary">{{ data.kpi.mismatched_count }}</div>
+            <div class="kpi-label">Расхождения КЗ и заявок</div>
+        </a>
+    </div>
+</div>
+
+<!-- Мёртвые -->
+<div class="section-card" id="dead">
+    <h5><i class="fas fa-bed text-secondary me-2"></i>Мёртвые договоры</h5>
+    <p class="text-muted small">Срок действия активен, но заявок не было больше 6 месяцев. Возможно, пора расторгнуть.</p>
+    {% if data.dead %}
+    <div class="table-responsive-wrapper">
+        <table class="portal-table" data-table data-order-col="3" data-order-dir="desc">
+            <thead>
+                <tr>
+                    <th>Договор</th>
+                    <th>Контрагент</th>
+                    <th class="hide-md">Ответственный</th>
+                    <th class="num-cell">Дней без заявок</th>
+                    <th class="num-cell">Сумма договора</th>
+                    <th class="hide-sm">Дата окончания</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in data.dead %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('contracts.detail', contract_code=c.external_code) }}" class="row-link">
+                            {{ c.contract_number or c.external_code }}
+                        </a>
+                    </td>
+                    <td>{{ c.counterparty }}</td>
+                    <td class="hide-md">{{ c.ответственный or '—' }}</td>
+                    <td class="num-cell cell-warning">{{ c.days_since_last }}</td>
+                    <td class="num-cell">{{ '{:,.0f}'.format(c.amount) }}</td>
+                    <td class="hide-sm">{{ c.end_date or '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-muted mb-0">Нет мёртвых договоров.</p>
+    {% endif %}
+</div>
+
+<!-- Растущие -->
+<div class="section-card" id="growing">
+    <h5><i class="fas fa-arrow-up text-warning me-2"></i>Растущие траты</h5>
+    <p class="text-muted small">Расходы за последние 3 месяца выросли более чем на 50% к предыдущим 3 месяцам. Возможно, пора пересмотреть лимит.</p>
+    {% if data.growing %}
+    <div class="table-responsive-wrapper">
+        <table class="portal-table" data-table data-order-col="5" data-order-dir="desc">
+            <thead>
+                <tr>
+                    <th>Договор</th>
+                    <th>Контрагент</th>
+                    <th class="num-cell hide-sm">3 мес. назад</th>
+                    <th class="num-cell">Последние 3 мес.</th>
+                    <th class="num-cell">Рост</th>
+                    <th class="num-cell">Лимит</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in data.growing %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('contracts.detail', contract_code=c.external_code) }}" class="row-link">
+                            {{ c.contract_number or c.external_code }}
+                        </a>
+                    </td>
+                    <td>{{ c.counterparty }}</td>
+                    <td class="num-cell hide-sm">{{ '{:,.0f}'.format(c.total_prev_3m) }}</td>
+                    <td class="num-cell">{{ '{:,.0f}'.format(c.total_3m) }}</td>
+                    <td class="num-cell cell-warning">+{{ '%.0f'|format(c.growth_pct) }}%</td>
+                    <td class="num-cell">{{ '{:,.0f}'.format(c.amount) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-muted mb-0">Нет договоров с резким ростом трат.</p>
+    {% endif %}
+</div>
+
+<!-- Истекающие -->
+<div class="section-card" id="expiring">
+    <h5><i class="fas fa-clock text-danger me-2"></i>Истекающие договоры</h5>
+    <p class="text-muted small">Окончание в течение 60 дней. Если пролонгация не предусмотрена — требуется продление или закрытие.</p>
+    {% if data.expiring %}
+    <div class="table-responsive-wrapper">
+        <table class="portal-table" data-table data-order-col="3" data-order-dir="asc">
+            <thead>
+                <tr>
+                    <th>Договор</th>
+                    <th>Контрагент</th>
+                    <th class="hide-md">Ответственный</th>
+                    <th class="num-cell">Дней до конца</th>
+                    <th class="num-cell hide-sm">Сумма</th>
+                    <th>Дата окончания</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in data.expiring %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('contracts.detail', contract_code=c.external_code) }}" class="row-link">
+                            {{ c.contract_number or c.external_code }}
+                        </a>
+                    </td>
+                    <td>{{ c.counterparty }}</td>
+                    <td class="hide-md">{{ c.ответственный or '—' }}</td>
+                    <td class="num-cell {% if c.days_to_end <= 14 %}cell-danger{% elif c.days_to_end <= 30 %}cell-warning{% endif %}">
+                        {{ c.days_to_end }}
+                    </td>
+                    <td class="num-cell hide-sm">{{ '{:,.0f}'.format(c.amount) }}</td>
+                    <td>
+                        {% if c.days_to_end <= 14 %}
+                            <span class="badge bg-danger">{{ c.end_date }}</span>
+                        {% elif c.days_to_end <= 30 %}
+                            <span class="badge bg-warning text-dark">{{ c.end_date }}</span>
+                        {% else %}
+                            {{ c.end_date }}
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-muted mb-0">Нет истекающих договоров.</p>
+    {% endif %}
+</div>
+
+<!-- Расхождения -->
+<div class="section-card" id="mismatched">
+    <h5><i class="fas fa-balance-scale text-primary me-2"></i>Расхождения КЗ и заявок</h5>
+    <p class="text-muted small">Кредиторская задолженность не сходится с суммой неоплаченных заявок более чем на 10 000 ₽. Возможна необработанная первичка в бухгалтерии.</p>
+    {% if data.mismatched %}
+    <div class="table-responsive-wrapper">
+        <table class="portal-table" data-table data-order-col="4" data-order-dir="desc">
+            <thead>
+                <tr>
+                    <th>Код договора</th>
+                    <th class="hide-sm">№ договора</th>
+                    <th>Контрагент</th>
+                    <th class="num-cell">КЗ</th>
+                    <th class="num-cell">Заявки (неоплач.)</th>
+                    <th class="num-cell">Расхождение</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in data.mismatched %}
+                <tr>
+                    <td>
+                        {% if c.contract_code %}
+                            <a href="{{ url_for('contracts.detail', contract_code=c.contract_code) }}" class="row-link">
+                                {{ c.contract_code }}
+                            </a>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td class="hide-sm">{{ c.contract_number or '—' }}</td>
+                    <td>{{ c.counterparty }}</td>
+                    <td class="num-cell">{{ '{:,.0f}'.format(c.kz_sum) }}</td>
+                    <td class="num-cell">{{ '{:,.0f}'.format(c.apps_sum) }}</td>
+                    <td class="num-cell {% if c.diff > 0 %}cell-danger{% else %}cell-warning{% endif %}">
+                        {{ '{:,.0f}'.format(c.diff) }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-muted mb-0">Расхождений нет.</p>
+    {% endif %}
+</div>
+
+{% endblock %}

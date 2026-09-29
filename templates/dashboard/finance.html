@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}Финансовый дашборд{% endblock %}
+{% block page_title %}Финансовый дашборд{% endblock %}
+
+{% block content %}
+
+<!-- Фильтры -->
+<div class="section-card">
+    <form method="get" class="row g-2 align-items-end">
+        <div class="col-md-3">
+            <label class="form-label fw-bold small">Период</label>
+            <div class="btn-group w-100" role="group">
+                <a href="?period=month&проект={{ filters.проект }}&контрагент={{ filters.контрагент }}"
+                   class="btn btn-sm {% if filters.period == 'month' %}btn-primary{% else %}btn-outline-primary{% endif %}">Месяц</a>
+                <a href="?period=quarter&проект={{ filters.проект }}&контрагент={{ filters.контрагент }}"
+                   class="btn btn-sm {% if filters.period == 'quarter' %}btn-primary{% else %}btn-outline-primary{% endif %}">Квартал</a>
+                <a href="?period=year&проект={{ filters.проект }}&контрагент={{ filters.контрагент }}"
+                   class="btn btn-sm {% if filters.period == 'year' %}btn-primary{% else %}btn-outline-primary{% endif %}">Год</a>
+                <a href="?period=all&проект={{ filters.проект }}&контрагент={{ filters.контрагент }}"
+                   class="btn btn-sm {% if filters.period == 'all' %}btn-primary{% else %}btn-outline-primary{% endif %}">Всё</a>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label fw-bold small">Проект</label>
+            <select name="проект" class="form-select form-select-sm">
+                <option value="">Все проекты</option>
+                {% for p in options.projects %}
+                <option value="{{ p }}" {% if filters.проект == p %}selected{% endif %}>{{ p }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label fw-bold small">Контрагент</label>
+            <input type="text" name="контрагент" class="form-control form-control-sm"
+                   placeholder="Часть названия" value="{{ filters.контрагент }}">
+        </div>
+        <div class="col-md-3">
+            <input type="hidden" name="period" value="{{ filters.period }}">
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="fas fa-filter me-1"></i>Применить
+            </button>
+            <a href="{{ url_for('dashboard.finance') }}" class="btn btn-secondary btn-sm">
+                <i class="fas fa-undo me-1"></i>Сбросить
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- KPI -->
+<div class="row">
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <div class="kpi-value">{{ '{:,.0f}'.format(data.kpi.total_sum) }}</div>
+            <div class="kpi-label">Сумма заявок</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <div class="kpi-value text-success">{{ '{:,.0f}'.format(data.kpi.paid_sum) }}</div>
+            <div class="kpi-label">Оплачено ({{ '%.1f'|format(data.kpi.paid_pct) }}%)</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <div class="kpi-value text-warning">{{ '{:,.0f}'.format(data.kpi.unpaid_sum) }}</div>
+            <div class="kpi-label">Не оплачено</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <div class="kpi-value">{{ '{:,.0f}'.format(data.kpi.avg_check) }}</div>
+            <div class="kpi-label">Средний чек ({{ data.kpi.total_count }} заявок)</div>
+        </div>
+    </div>
+</div>
+
+<!-- График динамики -->
+<div class="section-card">
+    <h5><i class="fas fa-chart-bar me-2"></i>Динамика заявок по месяцам</h5>
+    <canvas id="financeChart" height="80"></canvas>
+</div>
+
+<!-- Топ контрагентов и проектов -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="section-card">
+            <h5><i class="fas fa-building me-2"></i>Топ-10 контрагентов</h5>
+            <table class="table table-sm table-striped mb-0">
+                <thead><tr><th>Контрагент</th><th>Кол-во</th><th>Сумма</th></tr></thead>
+                <tbody>
+                    {% for row in data.top_counterparties %}
+                    <tr>
+                        <td>{{ row.контрагент }}</td>
+                        <td>{{ row.cnt }}</td>
+                        <td>{{ '{:,.0f}'.format(row.total) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="section-card">
+            <h5><i class="fas fa-folder me-2"></i>Топ-10 проектов</h5>
+            <table class="table table-sm table-striped mb-0">
+                <thead><tr><th>Проект</th><th>Кол-во</th><th>Сумма</th></tr></thead>
+                <tbody>
+                    {% for row in data.top_projects %}
+                    <tr>
+                        <td>{{ row.проект }}</td>
+                        <td>{{ row.cnt }}</td>
+                        <td>{{ '{:,.0f}'.format(row.total) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Статусы -->
+<div class="section-card">
+    <h5><i class="fas fa-list me-2"></i>Статусы согласования</h5>
+    <table class="table table-sm table-striped mb-0">
+        <thead><tr><th>Статус</th><th>Количество</th><th>Сумма</th><th>Доля</th></tr></thead>
+        <tbody>
+            {% set total_sum = data.kpi.total_sum %}
+            {% for row in data.statuses %}
+            <tr>
+                <td>{{ row.status }}</td>
+                <td>{{ row.cnt }}</td>
+                <td>{{ '{:,.0f}'.format(row.total) }}</td>
+                <td>{% if total_sum > 0 %}{{ '%.1f'|format((row.total|float) / (total_sum|float) * 100) }}%{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const monthly = {{ data.monthly|tojson }};
+new Chart(document.getElementById('financeChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+        labels: monthly.map(m => m.month),
+        datasets: [
+            { label: 'Сумма', data: monthly.map(m => m.total),
+              backgroundColor: 'rgba(54, 162, 235, 0.6)', yAxisID: 'y' },
+            { label: 'Количество', data: monthly.map(m => m.cnt),
+              type: 'line', borderColor: 'rgba(255, 99, 132, 1)',
+              backgroundColor: 'rgba(255, 99, 132, 0.2)', yAxisID: 'y1', tension: 0.3 }
+        ]
+    },
+    options: {
+        responsive: true,
+        interaction: { mode: 'index', intersect: false },
+        scales: {
+            y: { position: 'left', title: { display: true, text: 'Сумма' } },
+            y1: { position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Количество' } }
+        }
+    }
+});
+</script>
+{% endblock %}

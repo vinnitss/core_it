@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Объекты{% endblock %}
+{% block page_title %}Справочник объектов{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('objects.map_view') }}" class="btn btn-outline-primary btn-sm">
+    <i class="fas fa-map me-1"></i> На карте
+</a>
+{% if current_user.is_admin %}
+<a href="{{ url_for('objects.upload') }}" class="btn btn-primary btn-sm">
+    <i class="fas fa-upload me-1"></i> Загрузить CSV
+</a>
+<form method="post" action="{{ url_for('objects.generate_codes') }}" class="d-inline">
+    <button type="submit" class="btn btn-outline-warning btn-sm"
+            onclick="return confirm('Присвоить коды (001, 002, ...) объектам без кода?')">
+        <i class="fas fa-hashtag me-1"></i> Присвоить коды
+    </button>
+</form>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+
+<!-- Фильтры -->
+<div class="section-card">
+    <form method="get" class="row g-2 align-items-end">
+        <div class="col-md-3">
+            <label class="form-label fw-bold small">Проект</label>
+            <select name="project" class="form-select form-select-sm">
+                <option value="">Все проекты</option>
+                {% for p in options.projects %}
+                <option value="{{ p }}" {% if filters.project == p %}selected{% endif %}>{{ p }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label fw-bold small">Тип</label>
+            <select name="type" class="form-select form-select-sm">
+                <option value="">Все типы</option>
+                {% for t in options.types %}
+                <option value="{{ t }}" {% if filters.type == t %}selected{% endif %}>{{ t }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label fw-bold small">Статус</label>
+            <select name="status" class="form-select form-select-sm">
+                <option value="">Все статусы</option>
+                {% for s in options.statuses %}
+                <option value="{{ s }}" {% if filters.status == s %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label fw-bold small">Поиск</label>
+            <input type="text" name="search" class="form-control form-control-sm"
+                   value="{{ filters.search or '' }}" placeholder="Название, код или проект">
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="fas fa-search me-1"></i>Применить
+            </button>
+            <a href="{{ url_for('objects.index') }}" class="btn btn-secondary btn-sm">
+                <i class="fas fa-undo me-1"></i>Сброс
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Список -->
+<div class="section-card">
+    <div class="mb-2 text-muted small">
+        Всего объектов: <strong>{{ objects|length }}</strong>
+    </div>
+
+    {% if objects %}
+    <div class="table-responsive-wrapper">
+        <table class="portal-table" data-table data-order-col="1">
+            <thead>
+                <tr>
+                    <th>Код</th>
+                    <th>Название</th>
+                    <th class="hide-md">Проект</th>
+                    <th class="hide-md">Месторождение</th>
+                    <th>Тип</th>
+                    <th>Статус</th>
+                    <th class="hide-sm">Ответственный</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for o in objects %}
+                <tr>
+                    <td>
+                        {% if o.code %}
+                            <a href="{{ url_for('objects.detail', obj_id=o.id) }}" class="row-link">
+                                {{ o.code }}
+                            </a>
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ url_for('objects.detail', obj_id=o.id) }}" class="row-link">
+                            {{ o.name }}
+                        </a>
+                    </td>
+                    <td class="hide-md small">{{ o.project or '—' }}</td>
+                    <td class="hide-md small text-muted">{{ o.field or '—' }}</td>
+                    <td>
+                        {% if o.type == 'site' %}
+                            <span class="badge bg-primary">Площадка</span>
+                        {% elif o.type == 'res' %}
+                            <span class="badge bg-info text-dark">ВЗиС/ВЖГ</span>
+                        {% elif o.type == 'office' %}
+                            <span class="badge bg-secondary">Офис</span>
+                        {% else %}
+                            <span class="badge bg-light text-dark">{{ o.type or '—' }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if o.status == 'active' %}
+                            <span class="badge bg-success">Активен</span>
+                        {% elif o.status == 'delayed' %}
+                            <span class="badge bg-warning text-dark">Задержан</span>
+                        {% elif o.status == 'stopped' %}
+                            <span class="badge bg-danger">Остановлен</span>
+                        {% else %}
+                            <span class="badge bg-light text-dark">{{ o.status or '—' }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="hide-sm small text-muted">{{ o.ответственный or '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>
+        Объектов пока нет. {% if current_user.is_admin %}Загрузите CSV через кнопку «Загрузить CSV» в шапке.{% endif %}
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

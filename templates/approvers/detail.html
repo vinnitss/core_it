@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}{% if project %}{{ project.project }}{% else %}Новый проект{% endif %}{% endblock %}
+{% block page_title %}{% if project %}Проект: {{ project.project }}{% else %}Новый проект согласования{% endif %}{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('approvers.index') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="fas fa-arrow-left me-1"></i> К списку
+</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Основные поля -->
+<div class="section-card">
+    <form method="post">
+        <div class="row g-3">
+            <div class="col-md-2">
+                <label class="form-label fw-bold small">ИСД</label>
+                <input type="text" name="isd" class="form-control form-control-sm"
+                       value="{{ project.isd if project else '' }}"
+                       {% if not can_edit %}disabled{% endif %}>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold small">Проект *</label>
+                <input type="text" name="project" class="form-control form-control-sm"
+                       value="{{ project.project if project else '' }}"
+                       required {% if not can_edit %}disabled{% endif %}>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-bold small">Площадка</label>
+                <input type="text" name="platform" class="form-control form-control-sm"
+                       value="{{ project.platform if project else '' }}"
+                       {% if not can_edit %}disabled{% endif %}>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-bold small">Реестровость</label>
+                <select name="registry_type" class="form-select form-select-sm"
+                        {% if not can_edit %}disabled{% endif %}>
+                    <option value="">— не указано —</option>
+                    <option value="реестровый" {% if project and project.registry_type == 'реестровый' %}selected{% endif %}>реестровый</option>
+                    <option value="безреестровый" {% if project and project.registry_type == 'безреестровый' %}selected{% endif %}>безреестровый</option>
+                </select>
+            </div>
+        </div>
+
+        {% if can_edit %}
+        <div class="mt-3">
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="fas fa-save me-1"></i>Сохранить
+            </button>
+        </div>
+        {% endif %}
+    </form>
+</div>
+
+{% if project %}
+<!-- Этап 1 -->
+<div class="section-card">
+    <h5><i class="fas fa-user-check text-primary me-2"></i>1 этап согласования</h5>
+
+    {% if project.stage1 %}
+    <div class="table-responsive-wrapper mb-3">
+        <table class="portal-table compact">
+            <thead>
+                <tr>
+                    <th>ФИО</th>
+                    <th>Email</th>
+                    <th>Телефон</th>
+                    <th class="hide-md">Организация</th>
+                    {% if can_edit %}<th></th>{% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in project.stage1 %}
+                <tr>
+                    <td>{{ a.name }}</td>
+                    <td class="small">{{ a.email or '—' }}</td>
+                    <td class="small">{{ a.phone or '—' }}</td>
+                    <td class="hide-md small text-muted">{{ a.organization or '—' }}</td>
+                    {% if can_edit %}
+                    <td>
+                        <form method="post"
+                              action="{{ url_for('approvers.stage_remove', project_id=project.id, stage=1, approver_id=a.id) }}"
+                              class="d-inline"
+                              onsubmit="return confirm('Удалить согласующего?')">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </form>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-muted small">Нет согласующих на этом этапе.</p>
+    {% endif %}
+
+    {% if can_edit %}
+    <form method="post" action="{{ url_for('approvers.stage_add', project_id=project.id, stage=1) }}"
+          class="row g-2 align-items-end">
+        <div class="col-md-3">
+            <label class="form-label small">ФИО *</label>
+            <input type="text" name="name" class="form-control form-control-sm" required>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small">Email</label>
+            <input type="email" name="email" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label small">Телефон</label>
+            <input type="text" name="phone" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small">Организация</label>
+            <input type="text" name="organization" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-1">
+            <button type="submit" class="btn btn-success btn-sm">
+                <i class="fas fa-plus"></i>
+            </button>
+        </div>
+    </form>
+    {% endif %}
+</div>
+
+<!-- Этап 2 -->
+<div class="section-card">
+    <h5><i class="fas fa-user-check text-success me-2"></i>2 этап согласования</h5>
+
+    {% if project.stage2 %}
+    <div class="table-responsive-wrapper mb-3">
+        <table class="portal-table compact">
+            <thead>
+                <tr>
+                    <th>ФИО</th>
+                    <th>Email</th>
+                    <th>Телефон</th>
+                    <th class="hide-md">Организация</th>
+                    {% if can_edit %}<th></th>{% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in project.stage2 %}
+                <tr>
+                    <td>{{ a.name }}</td>
+                    <td class="small">{{ a.email or '—' }}</td>
+                    <td class="small">{{ a.phone or '—' }}</td>
+                    <td class="hide-md small text-muted">{{ a.organization or '—' }}</td>
+                    {% if can_edit %}
+                    <td>
+                        <form method="post"
+                              action="{{ url_for('approvers.stage_remove', project_id=project.id, stage=2, approver_id=a.id) }}"
+                              class="d-inline"
+                              onsubmit="return confirm('Удалить согласующего?')">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </form>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-muted small">Нет согласующих на этом этапе.</p>
+    {% endif %}
+
+    {% if can_edit %}
+    <form method="post" action="{{ url_for('approvers.stage_add', project_id=project.id, stage=2) }}"
+          class="row g-2 align-items-end">
+        <div class="col-md-3">
+            <label class="form-label small">ФИО *</label>
+            <input type="text" name="name" class="form-control form-control-sm" required>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small">Email</label>
+            <input type="email" name="email" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label small">Телефон</label>
+            <input type="text" name="phone" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small">Организация</label>
+            <input type="text" name="organization" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-1">
+            <button type="submit" class="btn btn-success btn-sm">
+                <i class="fas fa-plus"></i>
+            </button>
+        </div>
+    </form>
+    {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

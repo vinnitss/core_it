@@ -1,0 +1,382 @@
+{% extends "base.html" %}
+
+{% block title %}Мой дашборд{% endblock %}
+{% block page_title %}Мой дашборд{% endblock %}
+
+{% block head_extra %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+    .widget-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+        grid-auto-rows: min-content;
+    }
+    .widget-card {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        padding: 18px;
+        position: relative;
+        transition: box-shadow 0.15s;
+    }
+    .widget-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.1); }
+    .widget-card.size-small  { grid-column: span 1; }
+    .widget-card.size-medium { grid-column: span 2; }
+    .widget-card.size-full   { grid-column: span 4; }
+    .widget-title {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #495057;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        margin-bottom: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .widget-actions {
+        display: none;
+        gap: 4px;
+    }
+    .widget-card:hover .widget-actions { display: flex; }
+    .widget-action-btn {
+        background: none;
+        border: none;
+        color: #adb5bd;
+        cursor: pointer;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+    }
+    .widget-action-btn:hover { background: #f1f3f5; color: #495057; }
+    .drag-handle { cursor: grab; }
+    .sortable-ghost { opacity: 0.4; }
+    .sortable-chosen { box-shadow: 0 8px 24px rgba(0,0,0,0.15); }
+
+    /* Компактные KPI внутри виджета */
+    .widget-kpi { text-align: center; }
+    .widget-kpi .kpi-value { font-size: 1.5rem; font-weight: 700; }
+    .widget-kpi .kpi-icon { font-size: 1.3rem; margin-bottom: 6px; opacity: 0.75; }
+    .widget-kpi .kpi-label { font-size: 0.78rem; color: #6c757d; text-transform: uppercase; }
+
+    @media (max-width: 992px) {
+        .widget-grid { grid-template-columns: repeat(2, 1fr); }
+        .widget-card.size-small  { grid-column: span 1; }
+        .widget-card.size-medium { grid-column: span 2; }
+        .widget-card.size-full   { grid-column: span 2; }
+    }
+    @media (max-width: 576px) {
+        .widget-grid { grid-template-columns: 1fr; }
+        .widget-card { grid-column: span 1 !important; }
+    }
+</style>
+{% endblock %}
+
+{% block header_actions %}
+<button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addWidgetModal">
+    <i class="fas fa-plus me-1"></i> Добавить виджет
+</button>
+<button type="button" class="btn btn-outline-secondary btn-sm" onclick="resetDashboard()">
+    <i class="fas fa-undo me-1"></i> Сбросить
+</button>
+{% endblock %}
+
+{% block content %}
+
+{% if not widgets %}
+<div class="section-card text-center py-5">
+    <i class="fas fa-puzzle-piece fa-3x text-muted mb-3"></i>
+    <h5>Дашборд пуст</h5>
+    <p class="text-muted">Добавьте виджеты, чтобы видеть только нужную информацию.</p>
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addWidgetModal">
+        <i class="fas fa-plus me-1"></i> Добавить первый виджет
+    </button>
+</div>
+{% else %}
+<div id="widgetGrid" class="widget-grid">
+    {% for w in widgets %}
+    <div class="widget-card size-{{ w.size }}" data-key="{{ w.key }}">
+        <div class="widget-title">
+            <span class="drag-handle" title="Перетащите для изменения порядка">
+                <i class="fas fa-grip-vertical text-muted me-1"></i>
+                {{ w.meta.name }}
+            </span>
+            <span class="widget-actions">
+                <button type="button" class="widget-action-btn" title="Размер"
+                        onclick="cycleSize('{{ w.key }}', '{{ w.size }}')">
+                    <i class="fas fa-expand-alt"></i>
+                </button>
+                <button type="button" class="widget-action-btn" title="Удалить"
+                        onclick="removeWidget('{{ w.key }}')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </span>
+        </div>
+
+        {# ============ KPI ============ #}
+        {% if w.meta.type == 'kpi' %}
+            {% if w.data and w.data.error %}
+                <div class="alert alert-warning small mb-0">{{ w.data.error }}</div>
+            {% else %}
+                <div class="widget-kpi">
+                    <div class="kpi-icon text-{{ w.data.color or 'primary' }}">
+                        <i class="fas {{ w.data.icon or 'fa-chart-bar' }}"></i>
+                    </div>
+                    <div class="kpi-value text-{{ w.data.color or 'primary' }}">
+                        {% if w.data.format == 'money' %}
+                            {{ '{:,.0f}'.format(w.data.value) }}
+                        {% else %}
+                            {{ w.data.value }}
+                        {% endif %}
+                    </div>
+                    <div class="kpi-label">{{ w.data.label }}</div>
+                </div>
+            {% endif %}
+
+        {# ============ TABLE ============ #}
+        {% elif w.meta.type == 'table' %}
+            {% if w.data and w.data.error %}
+                <div class="alert alert-warning small mb-0">{{ w.data.error }}</div>
+            {% elif not w.data or not w.data.rows %}
+                <p class="text-muted small mb-0">{{ w.data.empty if w.data else 'Нет данных' }}</p>
+            {% else %}
+                {# Выпадающий фильтр по одной из колонок #}
+                {% if w.data.filter_column %}
+                <div class="widget-filter mb-2">
+                    <label class="small text-muted me-2">
+                        {{ w.data.filter_label or w.data.filter_column }}:
+                    </label>
+                    <select class="form-select form-select-sm d-inline-block"
+                            style="width: auto; display: inline-block;"
+                            onchange="filterWidgetTable('{{ w.key }}', this.value)">
+                        <option value="">Все</option>
+                        {% set filter_values = [] %}
+                        {% for row in w.data.rows %}
+                            {% set v = row.get(w.data.filter_column) %}
+                            {% if v and v not in filter_values %}
+                                {% set _ = filter_values.append(v) %}
+                                <option value="{{ v }}">{{ v }}</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+
+                <div class="table-responsive-wrapper" style="max-height: 320px; overflow-y: auto;">
+                    <table class="portal-table compact" data-widget-key="{{ w.key }}">
+                        <thead>
+                            <tr>
+                                {% for col in w.data.columns %}
+                                    <th class="{% if col.format == 'money' or col.format == 'int' %}num-cell{% endif %}">
+                                        {{ col.label }}
+                                    </th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in w.data.rows %}
+                            <tr data-filter-value="{{ row.get(w.data.filter_column, '') if w.data.filter_column else '' }}">
+                                {% for col in w.data.columns %}
+                                    {% set val = row.get(col.key) %}
+                                    <td class="{% if col.format == 'money' or col.format == 'int' %}num-cell{% endif %}
+                                               {% if col.color_by_sign and val is not none and val|float > 1 %}cell-danger{% endif %}
+                                               {% if col.color_by_value and val is not none and val|int > 30 %}cell-danger{% endif %}">
+                                        {% if val is none or val == '' %}
+                                            —
+                                        {% elif col.format == 'money' %}
+                                            {{ '{:,.0f}'.format(val) }}
+                                        {% elif col.format == 'int' %}
+                                            {{ val }}
+                                        {% else %}
+                                            {{ val }}
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+
+        {# ============ CHART ============ #}
+        {% elif w.meta.type == 'chart' %}
+            {% if w.data and w.data.error %}
+                <div class="alert alert-warning small mb-0">{{ w.data.error }}</div>
+            {% elif not w.data or not w.data.labels %}
+                <p class="text-muted small mb-0">{{ w.data.empty if w.data else 'Нет данных' }}</p>
+            {% else %}
+                <div style="height: 240px; position: relative;">
+                    <canvas id="chart-{{ w.key }}"></canvas>
+                </div>
+                <script>
+                (function() {
+                    const ctx = document.getElementById('chart-{{ w.key }}');
+                    if (!ctx || typeof Chart === 'undefined') return;
+                    new Chart(ctx, {
+                        type: {{ (w.data.type or 'bar')|tojson }},
+                        data: {
+                            labels: {{ w.data.labels|tojson }},
+                            datasets: [
+                                {% for ds in w.data.datasets %}
+                                {
+                                    label: {{ ds.label|tojson }},
+                                    data: {{ ds.data|tojson }},
+                                    backgroundColor: '{{ ds.color }}',
+                                    borderColor: '{{ ds.color }}',
+                                    type: {{ (ds.type or 'bar')|tojson }},
+                                    tension: 0.3,
+                                    yAxisID: '{{ ds.yAxisID or "y" }}'
+                                }{% if not loop.last %},{% endif %}
+                                {% endfor %}
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            interaction: { mode: 'index', intersect: false },
+                            plugins: {
+                                legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } }
+                            },
+                            scales: {
+                                y: {
+                                    type: 'linear',
+                                    position: 'left',
+                                    ticks: {
+                                        callback: (v) => new Intl.NumberFormat('ru-RU', {
+                                            notation: 'compact', compactDisplay: 'short'
+                                        }).format(v)
+                                    }
+                                },
+                                y1: {
+                                    type: 'linear',
+                                    position: 'right',
+                                    grid: { drawOnChartArea: false }
+                                }
+                            }
+                        }
+                    });
+                })();
+                </script>
+            {% endif %}
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Модалка добавления виджета -->
+<div class="modal fade" id="addWidgetModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-plus me-2"></i>Добавить виджет</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                {% if available %}
+                    {% for category, items in available.items() %}
+                        <h6 class="text-uppercase small text-muted mt-3 mb-2">{{ category }}</h6>
+                        <div class="list-group mb-2">
+                            {% for w in items %}
+                            <button type="button" class="list-group-item list-group-item-action"
+                                    onclick="addWidget('{{ w.key }}')">
+                                <i class="fas fa-plus-circle text-success me-2"></i>
+                                {{ w.name }}
+                                <span class="badge bg-light text-dark ms-2">{{ w.type }}</span>
+                            </button>
+                            {% endfor %}
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted text-center py-4">
+                        <i class="fas fa-check-circle text-success me-1"></i>
+                        Все доступные виджеты уже добавлены
+                    </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const grid = document.getElementById('widgetGrid');
+    if (grid) {
+        new Sortable(grid, {
+            animation: 150,
+            handle: '.drag-handle',
+            ghostClass: 'sortable-ghost',
+            chosenClass: 'sortable-chosen',
+            onEnd: function() {
+                const order = Array.from(grid.querySelectorAll('.widget-card'))
+                    .map(el => el.dataset.key);
+                fetch('{{ url_for("dashboard.api_widget_reorder") }}', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({keys: order})
+                });
+            }
+        });
+    }
+});
+
+async function addWidget(key) {
+    const resp = await fetch('{{ url_for("dashboard.api_widget_add") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({key: key})
+    });
+    const data = await resp.json();
+    if (data.ok) location.reload();
+    else alert('Не удалось добавить виджет');
+}
+
+async function removeWidget(key) {
+    if (!confirm('Удалить виджет?')) return;
+    await fetch('{{ url_for("dashboard.api_widget_remove") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({key: key})
+    });
+    location.reload();
+}
+
+async function cycleSize(key, currentSize) {
+    const sizes = ['small', 'medium', 'full'];
+    const idx = sizes.indexOf(currentSize);
+    const newSize = sizes[(idx + 1) % sizes.length];
+    await fetch('{{ url_for("dashboard.api_widget_resize") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({key: key, size: newSize})
+    });
+    location.reload();
+}
+
+async function resetDashboard() {
+    if (!confirm('Сбросить дашборд до стандартного набора?')) return;
+    await fetch('{{ url_for("dashboard.api_widget_reset") }}', { method: 'POST' });
+    location.reload();
+}
+// Фильтрация строк таблицы виджета по значению выпадающего списка
+function filterWidgetTable(widgetKey, filterValue) {
+    const table = document.querySelector(`table[data-widget-key="${widgetKey}"]`);
+    if (!table) return;
+    const rows = table.querySelectorAll('tbody tr');
+    rows.forEach(row => {
+        const rowValue = row.dataset.filterValue || '';
+        if (!filterValue || rowValue === filterValue) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+</script>
+{% endblock %}

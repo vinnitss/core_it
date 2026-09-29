@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block title %}Матч: {{ application.номер_заявки }}{% endblock %}
+{% block page_title %}Проверка матча {{ application.номер_заявки }}{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('objects.match_review') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="fas fa-arrow-left me-1"></i> К списку
+</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Информация о заявке -->
+<div class="section-card">
+    <h6 class="text-uppercase small text-muted mb-3">Заявка</h6>
+    <table class="table table-sm mb-0">
+        <tbody>
+            <tr>
+                <td class="text-muted" style="width: 180px;">Номер</td>
+                <td><strong>{{ application.номер_заявки }}</strong></td>
+            </tr>
+            <tr>
+                <td class="text-muted">Дата</td>
+                <td>{{ application.дата }}</td>
+            </tr>
+            <tr>
+                <td class="text-muted">Сумма</td>
+                <td>{{ '{:,.2f}'.format(application.сумма_заявки) if application.сумма_заявки else '—' }}</td>
+            </tr>
+            <tr>
+                <td class="text-muted">Проект</td>
+                <td>{{ application.проект or '—' }}</td>
+            </tr>
+            <tr>
+                <td class="text-muted">Контрагент</td>
+                <td>{{ application.контрагент or '—' }}</td>
+            </tr>
+            <tr>
+                <td class="text-muted">Ответственный</td>
+                <td>{{ application.ответственный or '—' }}</td>
+            </tr>
+            <tr>
+                <td class="text-muted">Назначение платежа</td>
+                <td class="small">{{ application.назначение_платежа or '—' }}</td>
+            </tr>
+            <tr>
+                <td class="text-muted">Договор контрагента</td>
+                <td class="small">{{ application.договор_контрагента or '—' }}</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Текущее состояние матча -->
+<div class="section-card">
+    <h6 class="text-uppercase small text-muted mb-3">Текущий матч</h6>
+
+    <div class="row align-items-center">
+        <div class="col-md-6 mb-2">
+            <strong>Уровень уверенности:</strong>
+            {% set conf = application.object_match_confidence %}
+            {% if conf == 'HIGH' %}<span class="badge bg-success">HIGH</span>
+            {% elif conf == 'MEDIUM' %}<span class="badge bg-primary">MEDIUM</span>
+            {% elif conf == 'AMBIGUOUS' %}<span class="badge bg-warning text-dark">AMBIGUOUS</span>
+            {% elif conf == 'CONFIRMED' %}<span class="badge bg-info">CONFIRMED</span>
+            {% elif conf == 'REJECTED' %}<span class="badge bg-secondary">REJECTED</span>
+            {% else %}<span class="badge bg-light text-dark">{{ conf or '—' }}</span>{% endif %}
+        </div>
+        <div class="col-md-6 mb-2">
+            <strong>Объект:</strong>
+            {% if current_object %}
+                <a href="{{ url_for('objects.detail', obj_id=current_object.id) }}" class="row-link">
+                    {{ current_object.name }}
+                </a>
+                {% if current_object.code %}<span class="badge bg-secondary ms-1">{{ current_object.code }}</span>{% endif %}
+            {% else %}
+                <span class="text-muted">не присвоен</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Кандидаты -->
+{% if candidates %}
+<div class="section-card">
+    <h6 class="text-uppercase small text-muted mb-3">Кандидаты из алгоритма</h6>
+    <div class="table-responsive-wrapper">
+        <table class="portal-table">
+            <thead>
+                <tr>
+                    <th>Объект</th>
+                    <th class="num-cell">Score</th>
+                    <th class="num-cell">Токенов</th>
+                    <th>Совпавшие токены</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in candidates %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('objects.detail', obj_id=c.object_id) }}" class="row-link">
+                            {{ c.name }}
+                        </a>
+                    </td>
+                    <td class="num-cell">{{ c.score }}</td>
+                    <td class="num-cell">{{ c.count }}</td>
+                    <td class="small text-muted">{{ c.tokens | join(', ') }}</td>
+                    <td>
+                        <form method="post" class="d-inline">
+                            <input type="hidden" name="action" value="set">
+                            <input type="hidden" name="object_id" value="{{ c.object_id }}">
+                            <button type="submit" class="btn btn-sm btn-outline-success">
+                                <i class="fas fa-check me-1"></i>Выбрать
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Ручное назначение через dropdown -->
+<div class="section-card">
+    <h6 class="text-uppercase small text-muted mb-3">Назначить объект вручную</h6>
+    <form method="post" class="row g-2 align-items-end">
+        <input type="hidden" name="action" value="set">
+        <div class="col-md-8">
+            <label class="form-label small">Выберите объект из справочника</label>
+            <select name="object_id" class="form-select form-select-sm">
+                <option value="">— не выбрано —</option>
+                {% for o in all_objects %}
+                <option value="{{ o.id }}" {% if current_object and current_object.id == o.id %}selected{% endif %}>
+                    {{ o.code or '—' }} · {{ o.name }}{% if o.project %} · {{ o.project }}{% endif %}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="fas fa-save me-1"></i>Сохранить
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Действия -->
+<div class="section-card">
+    <h6 class="text-uppercase small text-muted mb-3">Быстрые действия</h6>
+    <div class="d-flex gap-2 flex-wrap">
+        {% if application.object_id %}
+        <form method="post" class="d-inline">
+            <input type="hidden" name="action" value="confirm">
+            <button type="submit" class="btn btn-success btn-sm">
+                <i class="fas fa-check-circle me-1"></i>Подтвердить текущий объект
+            </button>
+        </form>
+        {% endif %}
+
+        <form method="post" class="d-inline">
+            <input type="hidden" name="action" value="reject">
+            <button type="submit" class="btn btn-outline-danger btn-sm"
+                    onclick="return confirm('Отклонить матч? Объект будет снят.')">
+                <i class="fas fa-times-circle me-1"></i>Отклонить матч
+            </button>
+        </form>
+
+        <a href="{{ url_for('objects.match_review', only_unconfirmed='1') }}"
+           class="btn btn-outline-primary btn-sm">
+            <i class="fas fa-forward me-1"></i>К следующей неподтверждённой
+        </a>
+    </div>
+</div>
+
+{% endblock %}

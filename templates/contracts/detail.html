@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Договор {{ details.contract_code }}{% endblock %}
+{% block page_title %}Договор {{ details.contract_code }}{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('contracts.index') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="fas fa-arrow-left me-1"></i> К списку договоров
+</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Информация о договоре -->
+{% if details.contract_info %}
+<div class="section-card">
+    <div class="row">
+        <div class="col-md-8">
+            <table class="table table-sm mb-0">
+                <tbody>
+                    <tr>
+                        <td class="text-muted" style="width:180px;">Контрагент</td>
+                        <td>{{ details.contract_info.counterparty or '—' }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Сумма договора</td>
+                        <td>{{ '{:,.2f}'.format(details.contract_info.amount) if details.contract_info.amount else '—' }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Ответственный</td>
+                        <td>{{ details.contract_info.ответственный or '—' }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">ЦФО</td>
+                        <td>{{ details.contract_info.цфо or '—' }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Период действия</td>
+                        <td>
+                            {{ details.contract_info.start_date or '—' }}
+                            —
+                            {{ details.contract_info.end_date or 'без срока' }}
+                        </td>
+                    </tr>
+                    {% if details.contract_info.условия_пролонгации %}
+                    <tr>
+                        <td class="text-muted">Пролонгация</td>
+                        <td>{{ details.contract_info.условия_пролонгации }}</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- KPI -->
+<div class="row">
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <div class="kpi-value text-danger">{{ '{:,.0f}'.format(details.kz_total) }}</div>
+            <div class="kpi-label">Кредиторская задолженность</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <div class="kpi-value text-primary">{{ '{:,.0f}'.format(details.dz_total) }}</div>
+            <div class="kpi-label">Дебиторская задолженность</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <div class="kpi-value text-warning">{{ '{:,.0f}'.format(details.unpaid_sum) }}</div>
+            <div class="kpi-label">Неоплаченные заявки</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <div class="kpi-value {% if details.diff > 1 or details.diff < -1 %}text-danger{% else %}text-success{% endif %}">
+                {{ '{:,.0f}'.format(details.diff) }}
+            </div>
+            <div class="kpi-label">Расхождение (КЗ − заявки)</div>
+        </div>
+    </div>
+</div>
+
+<!-- Сверка расчетов по договору -->
+<div class="section-card">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">
+            <i class="fas fa-list me-2"></i>Сверка расчетов по договору
+            <span class="text-muted small ms-2">({{ details.reconciliation|length }})</span>
+        </h5>
+        <div>
+            <span class="badge bg-success me-1">сопоставлено</span>
+            <span class="badge bg-warning text-dark">не сопоставлено</span>
+        </div>
+    </div>
+
+    {% if details.reconciliation %}
+    <div class="table-sticky-wrap">
+        <table class="portal-table" data-table data-order-col="2" data-order-dir="desc">
+            <thead>
+                <tr>
+                    <th>Номер документа (КЗ/ДЗ)</th>
+                    <th>Документ расчётов</th>
+                    <th class="hide-sm">Дата документа</th>
+                    <th>Номер заявки на оплату</th>
+                    <th class="hide-sm">Дата заявки</th>
+                    <th class="num-cell">Сумма задолженности</th>
+                    <th class="num-cell">Сумма заявки</th>
+                    <th>Статус</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in details.reconciliation %}
+                <tr>
+                    <td>{{ r.doc_number or '—' }}</td>
+                    <td class="small">{{ r.doc_ref or '—' }}</td>
+                    <td class="hide-sm small">{{ r.doc_date or '—' }}</td>
+                    <td>
+                        {% if r.app_number %}
+                            <strong>{{ r.app_number }}</strong>
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="hide-sm small">{{ r.app_date or '—' }}</td>
+                    <td class="num-cell">
+                        {% if r.debt_amount %}{{ '{:,.2f}'.format(r.debt_amount) }}{% else %}—{% endif %}
+                    </td>
+                    <td class="num-cell">
+                        {% if r.app_amount %}{{ '{:,.2f}'.format(r.app_amount) }}{% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if r.matched %}
+                            <span class="badge bg-success">Сопоставлено</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark">Не сопоставлено</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-muted mb-0">Нет данных для сверки по этому договору.</p>
+    {% endif %}
+</div>
+
+{% endblock %}

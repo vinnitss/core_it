@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+
+{% block title %}Планирование БДДС{% endblock %}
+{% block page_title %}Планирование БДДС{% endblock %}
+
+{% block content %}
+
+<!-- KPI -->
+<div class="row">
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <div class="kpi-value text-danger">{{ '{:,.0f}'.format(data.kpi.overdue_total) }}</div>
+            <div class="kpi-label">Просрочено к оплате</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <div class="kpi-value text-warning">{{ '{:,.0f}'.format(data.kpi.contracts_total) }}</div>
+            <div class="kpi-label">План по договорам</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <div class="kpi-value text-success">{{ '{:,.0f}'.format(data.kpi.recurring_total) }}</div>
+            <div class="kpi-label">Регулярные платежи</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <div class="kpi-value">{{ '{:,.0f}'.format(data.kpi.forecast_total) }}</div>
+            <div class="kpi-label">Всего в плане ({{ horizon }} мес.)</div>
+        </div>
+    </div>
+</div>
+
+{% if data.kpi.overdue_total > 0 %}
+<div class="alert alert-danger">
+    <i class="fas fa-exclamation-triangle me-2"></i>
+    <strong>Просроченные заявки:</strong> {{ '{:,.0f}'.format(data.kpi.overdue_total) }} ₽.
+    Распределены равными долями на 4 месяца для наглядной оценки масштаба.
+</div>
+{% endif %}
+
+<!-- Горизонт прогноза -->
+<div class="section-card">
+    <div class="d-flex align-items-center">
+        <label class="me-3 fw-bold">Горизонт планирования:</label>
+        <div class="btn-group btn-group-sm" role="group">
+            <a href="?horizon=3" class="btn {% if horizon == 3 %}btn-primary{% else %}btn-outline-primary{% endif %}">Квартал</a>
+            <a href="?horizon=6" class="btn {% if horizon == 6 %}btn-primary{% else %}btn-outline-primary{% endif %}">Полгода</a>
+            <a href="?horizon=12" class="btn {% if horizon == 12 %}btn-primary{% else %}btn-outline-primary{% endif %}">Год</a>
+        </div>
+    </div>
+</div>
+
+<!-- График: факт + отдельные линии прогноза -->
+<div class="section-card">
+    <h5><i class="fas fa-chart-line me-2"></i>Факт (12 мес.) и план БДДС по компонентам</h5>
+    <canvas id="cashflowChart" height="100"></canvas>
+</div>
+
+<!-- Сводка по месяцам -->
+<div class="section-card">
+    <h5><i class="fas fa-table me-2"></i>План по месяцам</h5>
+    <div class="table-responsive-wrapper">
+        <table class="portal-table">
+            <thead>
+                <tr>
+                    <th>Месяц</th>
+                    <th class="num-cell">Просрочено</th>
+                    <th class="num-cell">Согласовано</th>
+                    <th class="num-cell">По договорам</th>
+                    <th class="num-cell">Регулярные</th>
+                    <th class="num-cell">Итого</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in data.monthly %}
+                <tr>
+                    <td><strong>{{ row.month }}</strong></td>
+                    <td class="num-cell {% if row.overdue > 0 %}cell-danger{% endif %}">
+                        {% if row.overdue %}{{ '{:,.0f}'.format(row.overdue) }}{% else %}—{% endif %}
+                    </td>
+                    <td class="num-cell">
+                        {% if row.scheduled %}{{ '{:,.0f}'.format(row.scheduled) }}{% else %}—{% endif %}
+                    </td>
+                    <td class="num-cell">
+                        {% if row.contracts %}{{ '{:,.0f}'.format(row.contracts) }}{% else %}—{% endif %}
+                    </td>
+                    <td class="num-cell">
+                        {% if row.recurring %}{{ '{:,.0f}'.format(row.recurring) }}{% else %}—{% endif %}
+                    </td>
+                    <td class="num-cell fw-bold">{{ '{:,.0f}'.format(row.total) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Разбивка по проектам / ЦФО -->
+<div class="section-card">
+    <h5><i class="fas fa-folder me-2"></i>План по проектам и ЦФО</h5>
+    <div class="table-responsive-wrapper">
+        <table class="portal-table" data-table data-order-col="5" data-order-dir="desc">
+            <thead>
+                <tr>
+                    <th>Проект / ЦФО</th>
+                    <th class="num-cell">Просрочено</th>
+                    <th class="num-cell">Согласовано</th>
+                    <th class="num-cell">По договорам</th>
+                    <th class="num-cell">Регулярные</th>
+                    <th class="num-cell">Итого</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in data.by_project %}
+                <tr>
+                    <td>{{ p.project or '(не указан)' }}</td>
+                    <td class="num-cell {% if p.overdue > 0 %}cell-danger{% endif %}">
+                        {% if p.overdue %}{{ '{:,.0f}'.format(p.overdue) }}{% else %}—{% endif %}
+                    </td>
+                    <td class="num-cell">
+                        {% if p.scheduled %}{{ '{:,.0f}'.format(p.scheduled) }}{% else %}—{% endif %}
+                    </td>
+                    <td class="num-cell">
+                        {% if p.contracts %}{{ '{:,.0f}'.format(p.contracts) }}{% else %}—{% endif %}
+                    </td>
+                    <td class="num-cell">
+                        {% if p.recurring %}{{ '{:,.0f}'.format(p.recurring) }}{% else %}—{% endif %}
+                    </td>
+                    <td class="num-cell fw-bold">{{ '{:,.0f}'.format(p.total) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Справка -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="section-card">
+            <h5><i class="fas fa-list-ol me-2"></i>Как формируется план</h5>
+            <ul class="mb-0 small">
+                <li><strong>Просрочено</strong> — неоплаченные заявки с прошедшим периодом услуги. Распределены равными долями на 4 месяца (для оценки масштаба).</li>
+                <li><strong>Согласовано</strong> — неоплаченные заявки со статусом согласования и периодом услуги в будущем.</li>
+                <li><strong>По договорам</strong> — остаток лимита договоров, распределённый по дням до окончания срока.</li>
+                <li><strong>Регулярные</strong> — контрагенты, у которых за 12 месяцев были заявки в ≥ 4 месяцах. Прогноз = средняя сумма за месяц.</li>
+            </ul>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="section-card">
+            <h5><i class="fas fa-info-circle me-2"></i>Что не входит в план</h5>
+            <ul class="mb-0 small">
+                <li>Аннулированные и подготовленные заявки</li>
+                <li>Заявки без статуса согласования</li>
+                <li>Крупные разовые платежи</li>
+                <li>Контрагенты с уже согласованными заявками в горизонте (во избежание двойного счёта)</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const chartData = {{ data.chart|tojson }};
+
+new Chart(document.getElementById('cashflowChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+        labels: chartData.labels,
+        datasets: [
+            {
+                label: 'Факт',
+                data: chartData.fact,
+                backgroundColor: 'rgba(54, 162, 235, 0.35)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1,
+                order: 10
+            },
+            {
+                label: 'Погашение задолженности',
+                data: chartData.overdue,
+                type: 'line',
+                borderColor: 'rgba(220, 53, 69, 1)',
+                backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                borderWidth: 3,
+                tension: 0.3,
+                pointRadius: 5,
+                pointBackgroundColor: 'rgba(220, 53, 69, 1)',
+                order: 1
+            },
+            {
+                label: 'Регулярные платежи',
+                data: chartData.recurring,
+                type: 'line',
+                borderColor: 'rgba(25, 135, 84, 1)',
+                backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                borderWidth: 3,
+                tension: 0.3,
+                pointRadius: 5,
+                pointBackgroundColor: 'rgba(25, 135, 84, 1)',
+                order: 2
+            },
+            {
+                label: 'По договорам',
+                data: chartData.contracts,
+                type: 'line',
+                borderColor: 'rgba(255, 159, 64, 1)',
+                backgroundColor: 'rgba(255, 159, 64, 0.1)',
+                borderWidth: 3,
+                tension: 0.3,
+                pointRadius: 5,
+                pointBackgroundColor: 'rgba(255, 159, 64, 1)',
+                order: 3
+            },
+            {
+                label: 'Согласовано',
+                data: chartData.scheduled,
+                type: 'line',
+                borderColor: 'rgba(13, 110, 253, 1)',
+                backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                borderWidth: 3,
+                tension: 0.3,
+                pointRadius: 5,
+                pointBackgroundColor: 'rgba(13, 110, 253, 1)',
+                order: 4
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+            legend: { position: 'top' },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        let label = context.dataset.label || '';
+                        if (label) label += ': ';
+                        if (context.parsed.y !== null) {
+                            label += new Intl.NumberFormat('ru-RU').format(Math.round(context.parsed.y));
+                        }
+                        return label;
+                    }
+                }
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                title: { display: true, text: 'Сумма, ₽' },
+                ticks: {
+                    callback: function(value) {
+                        return new Intl.NumberFormat('ru-RU', {
+                            notation: 'compact',
+                            compactDisplay: 'short'
+                        }).format(value);
+                    }
+                }
+            }
+        }
+    }
+});
+</script>
+{% endblock %}
